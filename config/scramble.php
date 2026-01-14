@@ -29,7 +29,12 @@ return [
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => '',
+        /*
+         * Description rendered on the home page of the API documentation (`/docs/api`).
+         */
+        'description' => file_exists(base_path('docs/api_intro.md')) 
+            ? file_get_contents(base_path('docs/api_intro.md')) 
+            : 'Hybrid LMS API Documentation',
     ],
 
     /*
