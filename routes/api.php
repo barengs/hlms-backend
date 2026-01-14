@@ -13,7 +13,11 @@ use App\Http\Controllers\Api\V1\Instructor\BatchController;
 use App\Http\Controllers\Api\V1\Instructor\CourseController;
 use App\Http\Controllers\Api\V1\Instructor\LessonController;
 use App\Http\Controllers\Api\V1\Instructor\SectionController;
+use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\V1\Instructor\DashboardController as InstructorDashboardController;
 use App\Http\Controllers\Api\V1\PaymentWebhookController;
+use App\Http\Controllers\Api\V1\Student\DashboardController as StudentDashboardController;
+use App\Http\Controllers\Api\V1\Student\RecommendationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -64,6 +68,9 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function () {
+        // Dashboard
+        Route::get('dashboard', [AdminDashboardController::class, 'index']);
+
         // Categories CRUD
         Route::apiResource('categories', CategoryController::class);
         Route::post('categories/reorder', [CategoryController::class, 'reorder']);
@@ -75,6 +82,9 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('instructor')->middleware(['auth:sanctum', 'role:instructor|admin'])->group(function () {
+        // Dashboard
+        Route::get('dashboard', [InstructorDashboardController::class, 'index']);
+
         // Courses CRUD
         Route::apiResource('courses', CourseController::class);
         Route::post('courses/{course}/thumbnail', [CourseController::class, 'uploadThumbnail']);
@@ -104,6 +114,32 @@ Route::prefix('v1')->group(function () {
         // Assignments CRUD
         Route::apiResource('assignments', AssignmentController::class);
         Route::post('assignments/{assignment}/grade-submission/{submission}', [AssignmentController::class, 'gradeSubmission']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Student Routes (Structured Learning)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('student')->middleware(['auth:sanctum'])->group(function () {
+        // Dashboard
+        Route::get('dashboard', [StudentDashboardController::class, 'index']);
+        
+        // AI Recommendations
+        Route::get('recommendations', [RecommendationController::class, 'recommend']);
+
+        // Batches
+        Route::get('courses/{course}/batches', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'index']);
+        Route::get('batches/{batch}', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'show']);
+        Route::post('batches/{batch}/enroll', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'enroll']);
+
+        // Assignments
+        Route::get('assignments', [App\Http\Controllers\Api\V1\Student\AssignmentController::class, 'index']); // List all my assignments or filter by batch_id
+        Route::get('assignments/{assignment}', [App\Http\Controllers\Api\V1\Student\AssignmentController::class, 'show']);
+        Route::post('assignments/{assignment}/submit', [App\Http\Controllers\Api\V1\Student\AssignmentController::class, 'submit']);
+
+        // Grades
+        Route::get('grades', [App\Http\Controllers\Api\V1\Student\GradeController::class, 'index']);
     });
 
     /*
