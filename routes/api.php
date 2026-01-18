@@ -171,6 +171,30 @@ Route::prefix('v1')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Class Feature Routes (Hybrid LMS)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('classes')->middleware(['auth:sanctum'])->group(function () {
+        Route::get('/', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'store']);
+        Route::get('/{id}', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'show']);
+        Route::post('/join', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'join']);
+
+        // Stream
+        Route::get('/{id}/stream', [App\Http\Controllers\Api\V1\Classroom\ClassStreamController::class, 'index']);
+        Route::post('/{id}/stream', [App\Http\Controllers\Api\V1\Classroom\ClassStreamController::class, 'store']);
+
+        // Classwork
+        Route::get('/{id}/work', [App\Http\Controllers\Api\V1\Classroom\ClassworkController::class, 'index']); // Get all sections/lessons
+        Route::post('/{id}/topics', [App\Http\Controllers\Api\V1\Classroom\ClassworkController::class, 'storeTopic']);
+        Route::post('/{id}/materials', [App\Http\Controllers\Api\V1\Classroom\ClassworkController::class, 'storeMaterial']);
+
+        // People
+        Route::get('/{id}/people', [App\Http\Controllers\Api\V1\Classroom\ClassPeopleController::class, 'index']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Public Routes
     |--------------------------------------------------------------------------
     */

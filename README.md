@@ -1,58 +1,146 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Dokumentasi Sistem Hybrid LMS
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 1. Pendahuluan
 
-## About Laravel
+Sistem Hybrid LMS ini adalah platform pembelajaran yang menggabungkan dua model pembelajaran utama:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+1.  **Struktural (Udemy-style)**: Pembelajaran mandiri berbasis konten kursus video/teks yang dapat dibeli atau diakses secara bebas.
+2.  **Klasikal (Google Classroom-style)**: Pembelajaran berbasis kelas/cohort yang interaktif antara instruktur dan sekelompok siswa tertentu.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 2. Alur Proses Bisnis (Business Process)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### A. Model Pembelajaran Struktural (Self-Paced)
 
-## Learning Laravel
+1.  **Instruktur** membuat Materi Kursus (Kurikulum, Video, Kuis).
+2.  **Admin** meninjau dan mempublikasikan kursus.
+3.  **Siswa** menjelajahi katalog kursus publik.
+4.  **Siswa** membeli kursus (transaksi via Cart & Checkout).
+5.  **Sistem** memberikan akses materis setelah pembayaran sukses.
+6.  **Siswa** belajar mandiri sesuai kecepatannya sendiri.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### B. Model Pembelajaran Klasikal (Hybrid Class)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1.  **Instruktur** membuat "Kelas" baru.
+2.  **Sistem** memgenerate Kode Kelas unik.
+3.  **Instruktur** membagikan Kode Kelas kepada siswa.
+4.  **Siswa** bergabung ke kelas menggunakan Kode Kelas ("Join Class").
+5.  **Instruktur** memposting materi, pengumuman, atau pertanyaan di "Stream".
+6.  **Siswa** dan **Instruktur** berinteraksi dalam diskusi kelas.
+7.  **Instruktur** memberikan tugas dan materi spesifik untuk kelas tersebut.
 
-## Laravel Sponsors
+## 3. Modul & Fitur Detail
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 3.1. Modul Autentikasi (`Auth`)
 
-### Premium Partners
+- **Register**: Pendaftaran pengguna baru (Siswa/Instruktur).
+- **Login**: Akses aman ke dalam sistem menggunakan Token (Sanctum).
+- **Lupa Password**: Mekanisme reset password via email.
+- **Verifikasi Email**: Memastikan validitas email pengguna.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 3.2. Modul Admin (`Admin`)
 
-## Contributing
+Admin memiliki kendali penuh atas data induk sistem.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- **Dashboard**: Statistik total user, kursus, dan transaksi.
+- **Manajemen Kategori**: Mengelola kategori kursus (misal: "Pemrograman", "Desain").
+- **Verifikasi Instruktur**: Menyetujui pendaftaran instruktur.
 
-## Code of Conduct
+### 3.3. Modul Instruktur (`Instructor`)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Fitur untuk pembuat konten dan pengajar.
 
-## Security Vulnerabilities
+- **Manajemen Kursus (`Courses`)**:
+    - Membuat kursus baru (Judul, Deskripsi, Harga).
+    - Mengupload Thumbnail dan Video Preview.
+    - Menyusun Kurikulum (Section & Lesson).
+- **Manajemen Kelas (`Classes`)** [Fitur Baru]:
+    - Membuat Kelas Hybrid.
+    - Melihat daftar siswa (People).
+    - Mengelola Stream/Feed Kelas.
+    - Menambahkan Materi Kelas (Classwork).
+- **Tugas & Penilaian**: Membuat soal dan memberi nilai pada submission siswa.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 3.4. Modul Siswa (`Student`)
+
+- **Dashboard Belajar**: Melihat kursus yang diikuti dan progress belajar.
+- **Katalog & Pembelian**:
+    - Mencari kursus.
+    - Menambah ke Keranjang (`Cart`).
+    - Checkout dan Pembayaran.
+- **Ruang Kelas (`My Classes`)**:
+    - Bergabung ke kelas dengan Kode.
+    - Mengakses materi kelas & berdiskusi.
+- **Sertifikat**: Mengunduh sertifikat setelah menyelesaikan kursus (jika ada).
+
+### 3.5. Fitur Kelas (Hybrid Features)
+
+Fitur spesifik yang mengadopsi gaya Google Classroom.
+
+- **Stream**: Halaman utama kelas berisi lini masa pengumuman dan diskusi.
+- **Classwork**: Tab berisi materi dan topik pelajaran yang terstruktur.
+- **People**: Daftar anggota kelas (Instruktur & Siswa).
+- **Class Code**: Kode unik 6-karakter untuk akses mudah.
+
+## 4. Arsitektur Teknis (API)
+
+Sistem dibangun sebagai **REST API** menggunakan Laravel.
+
+- **Backend**: Laravel 11.x
+- **Database**: MySQL
+- **Security**: Laravel Sanctum (Token-based Auth).
+- **Endpoints**:
+    - `/api/v1/auth/*`: Autentikasi
+    - `/api/v1/admin/*`: Area Admin
+    - `/api/v1/instructor/*`: Area Instruktur standar
+    - `/api/v1/student/*`: Area Siswa standar
+    - `/api/v1/classes/*`: Fitur Kelas Hybrid
+    - `/api/v1/public/*`: Data publik
+
+## 5. Struktur Relasi Data (Entity Relationship)
+
+Berikut adalah gambaran umum bagaimana entitas data saling berelasi dalam sistem ini:
+
+```mermaid
+erDiagram
+    User ||--o{ Course : "Creates (Instructor)"
+    User ||--o{ Enrollment : "Enrolls (Student)"
+    User ||--o{ Discussion : "Posts"
+
+    Category ||--o{ Course : "Categorizes"
+
+    Course ||--o{ Section : "Contains"
+    Course ||--o{ Batch : "Has Instances"
+    Course ||--o{ Enrollment : "Has Students"
+
+    Section ||--o{ Lesson : "Contains"
+
+    Batch ||--o{ Enrollment : "Contains Students"
+    Batch ||--o{ Discussion : "Has Stream"
+
+    Enrollment }|--|| User : "Belongs To"
+    Enrollment }|--|| Course : "Belongs To"
+    Enrollment }|--o| Batch : "Belongs To (Class only)"
+```
+
+### Penjelasan Relasi Utama:
+
+1.  **User & Role**:
+    - Satu **User** bisa menjadi **Instructor** (memiliki banyak `Course`) sekaligus **Student** (memiliki banyak `Enrollment`).
+2.  **Course Structure**:
+    - **Course** adalah entitas induk materi.
+    - Terdiri dari banyak **Section** (Bab), dan setiap Section memiliki banyak **Lesson** (Materi/Video).
+3.  **Hybrid Class Logic**:
+    - **Batch** adalah representasi "Kelas" atau "Angkatan".
+    - Setiap **Batch** terikat pada satu **Course** (1:N). Satu Course bisa memiliki banyak Batch (misal: Kelas A, Kelas B).
+    - **Enrollment** mencatat pendaftaran siswa.
+        - Jika `batch_id` terisi -> Siswa masuk via Kelas (Hybrid).
+        - Jika `batch_id` kosong -> Siswa membeli Course mandiri (Self-paced).
+4.  **Interaction**:
+    - **Discussion** (Stream) terikat pada **Batch**, memungkinkan diskusi privat antar anggota kelas tersebut saja.
+
+---
+
+_Dokumen ini dibuat otomatis oleh Sistem Hybrid LMS._
 
 ## License
 

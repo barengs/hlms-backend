@@ -14,7 +14,19 @@ use Illuminate\Validation\Rule;
 class LessonController extends Controller
 {
     /**
-     * Store a newly created lesson.
+     * Create Lesson
+     * 
+     * Add a new lesson (material) to a specific section.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @bodyParam title string required The title of the lesson.
+     * @bodyParam type string required Type of lesson. Enum: video, text, quiz, assignment.
+     * @bodyParam video_url string optional URL for video content.
+     * @bodyParam content string optional Text content.
+     * @response 201 {"message": "Lesson created successfully.", "data": object}
      */
     public function store(Request $request, Course $course, Section $section): JsonResponse
     {
@@ -60,7 +72,16 @@ class LessonController extends Controller
     }
 
     /**
-     * Display the specified lesson.
+     * Get Lesson Details
+     * 
+     * Retrieve details of a specific lesson, including attachments.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @urlParam lesson integer required The ID of the lesson.
+     * @response 200 {"data": object}
      */
     public function show(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
@@ -84,7 +105,20 @@ class LessonController extends Controller
     }
 
     /**
-     * Update the specified lesson.
+     * Update Lesson
+     * 
+     * Update specific lesson details.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @urlParam lesson integer required The ID of the lesson.
+     * @bodyParam title string optional The title of the lesson.
+     * @bodyParam type string optional Type of lesson.
+     * @bodyParam video_url string optional URL for video content.
+     * @bodyParam content string optional Text content.
+     * @response 200 {"message": "Lesson updated successfully.", "data": object}
      */
     public function update(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
@@ -126,7 +160,16 @@ class LessonController extends Controller
     }
 
     /**
-     * Remove the specified lesson.
+     * Delete Lesson
+     * 
+     * Remove a lesson and its attachments.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @urlParam lesson integer required The ID of the lesson.
+     * @response 200 {"message": "Lesson deleted successfully."}
      */
     public function destroy(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
@@ -161,7 +204,18 @@ class LessonController extends Controller
     }
 
     /**
-     * Reorder lessons in a section.
+     * Reorder Lessons
+     * 
+     * Update the sort order of lessons in a section.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @bodyParam lessons array required List of lesson IDs and their new sort_order.
+     * @bodyParam lessons.*.id integer required The Lesson ID.
+     * @bodyParam lessons.*.sort_order integer required The new order index.
+     * @response 200 {"message": "Lessons reordered successfully."}
      */
     public function reorder(Request $request, Course $course, Section $section): JsonResponse
     {
@@ -197,7 +251,18 @@ class LessonController extends Controller
     }
 
     /**
-     * Upload attachment to a lesson.
+     * Upload Attachment
+     * 
+     * Upload a file attachment to a lesson.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @urlParam lesson integer required The ID of the lesson.
+     * @bodyParam file file required The file to upload. Max 50MB.
+     * @bodyParam title string optional Display title for the file.
+     * @response 201 {"message": "Attachment uploaded successfully.", "data": object}
      */
     public function uploadAttachment(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
@@ -239,7 +304,17 @@ class LessonController extends Controller
     }
 
     /**
-     * Delete attachment from a lesson.
+     * Delete Attachment
+     * 
+     * Remove a file attachment from a lesson.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @urlParam lesson integer required The ID of the lesson.
+     * @urlParam attachmentId integer required The ID of the attachment.
+     * @response 200 {"message": "Attachment deleted successfully."}
      */
     public function deleteAttachment(Request $request, Course $course, Section $section, Lesson $lesson, int $attachmentId): JsonResponse
     {

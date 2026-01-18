@@ -15,6 +15,7 @@ class Batch extends Model
         'course_id',
         'name',
         'slug',
+        'class_code',
         'description',
         'start_date',
         'end_date',
@@ -132,5 +133,17 @@ class Batch extends Model
     public function getHasEndedAttribute(): bool
     {
         return $this->end_date < now();
+    }
+
+    /**
+     * Generate a unique class code.
+     */
+    public static function generateClassCode(): string
+    {
+        do {
+            $code = strtoupper(bin2hex(random_bytes(3))); // 6 chars
+        } while (self::where('class_code', $code)->exists());
+
+        return $code;
     }
 }

@@ -11,7 +11,16 @@ use Illuminate\Http\Request;
 class SectionController extends Controller
 {
     /**
-     * Store a newly created section.
+     * Create Section
+     * 
+     * Create a new section (module/chapter) within a specific course.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @bodyParam title string required The title of the section.
+     * @bodyParam description string optional A brief description.
+     * @response 201 {"message": "Section created successfully.", "data": object}
      */
     public function store(Request $request, Course $course): JsonResponse
     {
@@ -40,7 +49,17 @@ class SectionController extends Controller
     }
 
     /**
-     * Update the specified section.
+     * Update Section
+     * 
+     * Update specific section details.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @bodyParam title string optional The title of the section.
+     * @bodyParam description string optional A brief description.
+     * @response 200 {"message": "Section updated successfully.", "data": object}
      */
     public function update(Request $request, Course $course, Section $section): JsonResponse
     {
@@ -72,7 +91,15 @@ class SectionController extends Controller
     }
 
     /**
-     * Remove the specified section.
+     * Delete Section
+     * 
+     * Remove a section and all its lessons.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam section integer required The ID of the section.
+     * @response 200 {"message": "Section deleted successfully."}
      */
     public function destroy(Request $request, Course $course, Section $section): JsonResponse
     {
@@ -98,7 +125,17 @@ class SectionController extends Controller
     }
 
     /**
-     * Reorder sections in a course.
+     * Reorder Sections
+     * 
+     * Update the sort order of sections in a course.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @bodyParam sections array required List of section IDs and their new sort_order.
+     * @bodyParam sections.*.id integer required The Section ID.
+     * @bodyParam sections.*.sort_order integer required The new order index.
+     * @response 200 {"message": "Sections reordered successfully."}
      */
     public function reorder(Request $request, Course $course): JsonResponse
     {
