@@ -39,6 +39,7 @@ class Course extends Model
         'total_enrollments',
         'average_rating',
         'total_reviews',
+        'admin_feedback',
     ];
 
     protected function casts(): array

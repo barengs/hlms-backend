@@ -23,6 +23,11 @@ class CourseController extends Controller
             ->when($request->search, fn($q, $search) => $q->where('title', 'like', "%{$search}%"))
             ->with(['category:id,name,slug'])
             ->withCount(['sections', 'lessons'])
+            ->withSum(['orderItems as revenue' => function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->where('status', 'paid');
+                });
+            }], 'price')
             ->orderBy('updated_at', 'desc')
             ->paginate($request->per_page ?? 10);
 
