@@ -29,7 +29,7 @@ class CourseController extends Controller
                 });
             }], 'price')
             ->orderBy('updated_at', 'desc')
-            ->paginate($request->per_page ?? 10);
+            ->get();
 
         return response()->json($courses);
     }
