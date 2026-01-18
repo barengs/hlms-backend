@@ -58,8 +58,7 @@ class CourseController extends Controller
      * @group Instructor
      * @subgroup Course Management
      * @bodyParam title string required The title of the course.
-     * @bodyParam type string required Type of course (self_paced, structured).
-     * @bodyParam price number optional Price of the course.
+     * @bodyParam thumbnail file optional Course thumbnail image (max 2MB).
      * @response 201 {"message": "Course created successfully.", "data": object}
      */
     public function store(Request $request): JsonResponse
@@ -78,6 +77,7 @@ class CourseController extends Controller
             'requirements' => ['nullable', 'array'],
             'outcomes' => ['nullable', 'array'],
             'target_audience' => ['nullable', 'array'],
+            'thumbnail' => ['nullable', 'image', 'max:2048'],
         ]);
 
         // Auto-generate slug if not provided
@@ -93,6 +93,11 @@ class CourseController extends Controller
         }
 
         $validated['instructor_id'] = $request->user()->id;
+
+        // Handle Thumbnail Upload
+        if ($request->hasFile('thumbnail')) {
+            $validated['thumbnail'] = $this->handleThumbnailUpload($request->file('thumbnail'));
+        }
 
         $course = Course::create($validated);
 
@@ -139,7 +144,19 @@ class CourseController extends Controller
      * @subgroup Course Management
      * @urlParam course integer required The ID of the course.
      * @bodyParam title string optional The title of the course.
+     * @bodyParam slug string unique optional Unique slug.
+     * @bodyParam subtitle string optional Subtitle of the course.
      * @bodyParam description string optional Course description.
+     * @bodyParam category_id integer optional ID of the category.
+     * @bodyParam type enum optional Type of course (self_paced, structured).
+     * @bodyParam level enum optional Difficulty level.
+     * @bodyParam language string optional Language code.
+     * @bodyParam price number optional Price of the course.
+     * @bodyParam discount_price number optional Discounted price.
+     * @bodyParam requirements array optional List of course requirements.
+     * @bodyParam outcomes array optional List of learning outcomes.
+     * @bodyParam target_audience array optional List of target audience.
+     * @bodyParam thumbnail file optional Course thumbnail image (max 2MB).
      * @response 200 {"message": "Course updated successfully.", "data": object}
      */
     public function update(Request $request, Course $course): JsonResponse
@@ -165,7 +182,17 @@ class CourseController extends Controller
             'requirements' => ['nullable', 'array'],
             'outcomes' => ['nullable', 'array'],
             'target_audience' => ['nullable', 'array'],
+            'thumbnail' => ['nullable', 'image', 'max:2048'],
         ]);
+
+        // Handle Thumbnail Upload
+        if ($request->hasFile('thumbnail')) {
+            // Delete old thumbnail
+            if ($course->thumbnail) {
+                Storage::disk('public')->delete($course->thumbnail);
+            }
+            $validated['thumbnail'] = $this->handleThumbnailUpload($request->file('thumbnail'));
+        }
 
         $course->update($validated);
 
@@ -204,7 +231,7 @@ class CourseController extends Controller
             Storage::disk('public')->delete($course->thumbnail);
         }
 
-        $path = $request->file('thumbnail')->store('courses/thumbnails', 'public');
+        $path = $this->handleThumbnailUpload($request->file('thumbnail'));
         $course->update(['thumbnail' => $path]);
 
         return response()->json([
@@ -212,6 +239,100 @@ class CourseController extends Controller
             'data' => [
                 'thumbnail' => $path,
                 'url' => Storage::disk('public')->url($path),
+            ],
+        ]);
+    }
+
+    /**
+     * Handle thumbnail upload, resize, and conversion to WebP.
+     * 
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return string Path to saved file
+     */
+    private function handleThumbnailUpload($file): string
+    {
+        $filename = Str::uuid() . '.webp';
+        $path = 'courses/thumbnails/' . $filename;
+
+        // Convert to WebP using Intervention Image
+        $image = \Intervention\Image\Laravel\Facades\Image::read($file);
+        
+        // Resize individually to prevent too large images (e.g., 800px width, auto height)
+        // aspect ratio is maintained
+        $image->scale(width: 800);
+
+        // Encode to webp quality 80
+        $encoded = $image->toWebp(quality: 80);
+
+        // Save to storage
+        Storage::disk('public')->put($path, (string) $encoded);
+
+        return $path;
+    }
+
+    /**
+     * Upload Preview Video
+     *
+     * Upload and transcode the course preview video (HLS).
+     *
+     * @group Instructor
+     * @subgroup Course Management
+     * @urlParam course integer required The ID of the course.
+     * @bodyParam video file required The video file (max 100MB, mp4/mov/avi).
+     * @response 200 {"message": "Video uploaded and processing started.", "data": {"preview_video": "..."}}
+     */
+    public function uploadPreviewVideo(Request $request, Course $course): JsonResponse
+    {
+        // Ensure instructor owns this course
+        if ($course->instructor_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'video' => ['required', 'file', 'mimetypes:video/mp4,video/quicktime,video/x-msvideo', 'max:102400'], // 100MB
+        ]);
+
+        // Delete old video if exists
+        if ($course->preview_video) {
+            // Delete directory
+            $oldPath = dirname($course->preview_video);
+            Storage::disk('public')->deleteDirectory($oldPath);
+        }
+
+        $file = $request->file('video');
+        $filename = Str::uuid();
+        $basePath = "courses/videos/{$course->id}/{$filename}";
+
+        // Save original temporarily
+        $tempPath = $file->storeAs("courses/temp/{$course->id}", $filename . '.' . $file->getClientOriginalExtension());
+        
+        // Transcode to HLS
+        $lowBitrate = (new \FFMpeg\Format\Video\X264)->setKiloBitrate(500);
+        $highBitrate = (new \FFMpeg\Format\Video\X264)->setKiloBitrate(1000);
+
+        \ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::fromDisk('local') // Assuming temp storage is local
+            ->open($tempPath)
+            ->exportForHLS()
+            ->toDisk('public')
+            ->addFormat($lowBitrate, function($media) {
+                $media->resize(640, 360);
+            })
+            ->addFormat($highBitrate, function($media) {
+                $media->resize(1280, 720);
+            })
+            ->save("{$basePath}/playlist.m3u8");
+
+        // Clean temp file
+        Storage::delete($tempPath);
+
+        $playlistPath = "{$basePath}/playlist.m3u8";
+        $course->update(['preview_video' => $playlistPath]);
+
+        return response()->json([
+            'message' => 'Preview video uploaded and processed successfully.',
+            'data' => [
+                'preview_video' => $playlistPath,
+                'url' => Storage::disk('public')->url($playlistPath),
             ],
         ]);
     }
