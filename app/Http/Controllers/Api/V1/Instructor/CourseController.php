@@ -13,7 +13,23 @@ use Illuminate\Validation\Rule;
 class CourseController extends Controller
 {
     /**
-     * Display a listing of the instructor's courses.
+     * List Courses
+     * 
+     * Get a list of the instructor's courses with filtering options.
+     * 
+     * @group Instructor
+     * @subgroup Course Management
+     * @queryParam status string Filter by status (draft, published, etc.).
+     * @queryParam type string Filter by type (self_paced, structured).
+     * @queryParam search string Search by title.
+     * @response 200 [
+     *   {
+     *     "id": 1,
+     *     "title": "Laravel for Beginners",
+     *     "revenue": 1500000,
+     *     "admin_feedback": null
+     *   }
+     * ]
      */
     public function index(Request $request): JsonResponse
     {
@@ -35,7 +51,16 @@ class CourseController extends Controller
     }
 
     /**
-     * Store a newly created course.
+     * Create Course
+     * 
+     * Create a new course draft.
+     * 
+     * @group Instructor
+     * @subgroup Course Management
+     * @bodyParam title string required The title of the course.
+     * @bodyParam type string required Type of course (self_paced, structured).
+     * @bodyParam price number optional Price of the course.
+     * @response 201 {"message": "Course created successfully.", "data": object}
      */
     public function store(Request $request): JsonResponse
     {
@@ -78,7 +103,14 @@ class CourseController extends Controller
     }
 
     /**
-     * Display the specified course.
+     * Get Course Details
+     * 
+     * Retrieve details of a specific course including sections and lessons count.
+     * 
+     * @group Instructor
+     * @subgroup Course Management
+     * @urlParam course integer required The ID of the course.
+     * @response 200 {"data": object}
      */
     public function show(Request $request, Course $course): JsonResponse
     {
@@ -99,7 +131,16 @@ class CourseController extends Controller
     }
 
     /**
-     * Update the specified course.
+     * Update Course
+     * 
+     * Update details of an existing course.
+     * 
+     * @group Instructor
+     * @subgroup Course Management
+     * @urlParam course integer required The ID of the course.
+     * @bodyParam title string optional The title of the course.
+     * @bodyParam description string optional Course description.
+     * @response 200 {"message": "Course updated successfully.", "data": object}
      */
     public function update(Request $request, Course $course): JsonResponse
     {
@@ -135,7 +176,15 @@ class CourseController extends Controller
     }
 
     /**
-     * Upload course thumbnail.
+     * Upload Thumbnail
+     * 
+     * Upload and update the course thumbnail image.
+     * 
+     * @group Instructor
+     * @subgroup Course Management
+     * @urlParam course integer required The ID of the course.
+     * @bodyParam thumbnail file required The image file (max 2MB).
+     * @response 200 {"message": "Thumbnail uploaded successfully.", "data": {"url": "..."}}
      */
     public function uploadThumbnail(Request $request, Course $course): JsonResponse
     {
@@ -168,7 +217,14 @@ class CourseController extends Controller
     }
 
     /**
-     * Submit course for review.
+     * Submit for Review
+     * 
+     * Submit a draft course for admin review.
+     * 
+     * @group Instructor
+     * @subgroup Course Management
+     * @urlParam course integer required The ID of the course.
+     * @response 200 {"message": "Course submitted for review.", "data": object}
      */
     public function submitForReview(Request $request, Course $course): JsonResponse
     {
@@ -203,7 +259,14 @@ class CourseController extends Controller
     }
 
     /**
-     * Remove the specified course.
+     * Delete Course
+     * 
+     * Delete a draft course.
+     * 
+     * @group Instructor
+     * @subgroup Course Management
+     * @urlParam course integer required The ID of the course.
+     * @response 200 {"message": "Course deleted successfully."}
      */
     public function destroy(Request $request, Course $course): JsonResponse
     {
