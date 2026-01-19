@@ -85,6 +85,9 @@ Route::prefix('v1')->group(function () {
         // Dashboard
         Route::get('dashboard', [InstructorDashboardController::class, 'index']);
 
+        // Categories (Read-only for instructors)
+        Route::get('categories', [CategoryController::class, 'index']);
+
         // Courses CRUD
         Route::apiResource('courses', CourseController::class);
         Route::post('courses/{course}/thumbnail', [CourseController::class, 'uploadThumbnail']);
