@@ -73,7 +73,7 @@ class CourseController extends Controller
             'level' => ['nullable', Rule::in(['beginner', 'intermediate', 'advanced', 'all_levels'])],
             'language' => ['nullable', 'string', 'max:10'],
             'price' => ['nullable', 'numeric', 'min:0'],
-            'discount_price' => ['nullable', 'numeric', 'min:0', 'lt:price'],
+            'discount_price' => ['nullable', 'numeric', 'min:0', 'lte:price'],
             'requirements' => ['nullable', 'array'],
             'outcomes' => ['nullable', 'array'],
             'target_audience' => ['nullable', 'array'],
@@ -120,7 +120,7 @@ class CourseController extends Controller
     public function show(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
@@ -162,7 +162,7 @@ class CourseController extends Controller
     public function update(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
@@ -216,7 +216,7 @@ class CourseController extends Controller
     public function uploadThumbnail(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
@@ -284,7 +284,7 @@ class CourseController extends Controller
     public function uploadPreviewVideo(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -350,7 +350,7 @@ class CourseController extends Controller
     public function submitForReview(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
@@ -392,7 +392,7 @@ class CourseController extends Controller
     public function destroy(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);

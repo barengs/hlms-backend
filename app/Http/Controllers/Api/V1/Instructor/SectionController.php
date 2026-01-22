@@ -25,7 +25,7 @@ class SectionController extends Controller
     public function store(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
@@ -64,14 +64,14 @@ class SectionController extends Controller
     public function update(Request $request, Course $course, Section $section): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure section belongs to course
-        if ($section->course_id !== $course->id) {
+        if ($section->course_id != $course->id) {
             return response()->json([
                 'message' => 'Section not found in this course.',
             ], 404);
@@ -104,14 +104,14 @@ class SectionController extends Controller
     public function destroy(Request $request, Course $course, Section $section): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure section belongs to course
-        if ($section->course_id !== $course->id) {
+        if ($section->course_id != $course->id) {
             return response()->json([
                 'message' => 'Section not found in this course.',
             ], 404);
@@ -140,7 +140,7 @@ class SectionController extends Controller
     public function reorder(Request $request, Course $course): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);

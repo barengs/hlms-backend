@@ -110,6 +110,9 @@ Route::prefix('v1')->group(function () {
         Route::delete('courses/{course}/sections/{section}/lessons/{lesson}', [LessonController::class, 'destroy']);
         Route::post('courses/{course}/sections/{section}/lessons/reorder', [LessonController::class, 'reorder']);
 
+        // Direct Lesson Access (Simplified)
+        Route::get('courses/{course}/lessons/{lesson}', [LessonController::class, 'showData']);
+
         // Lesson Attachments
         Route::post('courses/{course}/sections/{section}/lessons/{lesson}/attachments', [LessonController::class, 'uploadAttachment']);
         Route::delete('courses/{course}/sections/{section}/lessons/{lesson}/attachments/{attachment}', [LessonController::class, 'deleteAttachment']);

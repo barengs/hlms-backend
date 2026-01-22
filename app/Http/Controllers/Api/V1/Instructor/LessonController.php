@@ -31,14 +31,14 @@ class LessonController extends Controller
     public function store(Request $request, Course $course, Section $section): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure section belongs to course
-        if ($section->course_id !== $course->id) {
+        if ($section->course_id != $course->id) {
             return response()->json([
                 'message' => 'Section not found in this course.',
             ], 404);
@@ -72,6 +72,40 @@ class LessonController extends Controller
     }
 
     /**
+     * Get Lesson Data (Simplified)
+     * 
+     * Retrieve details of a specific lesson without providing section ID.
+     * 
+     * @group Instructor
+     * @subgroup Course Curriculum
+     * @urlParam course integer required The ID of the course.
+     * @urlParam lesson integer required The ID of the lesson.
+     * @response 200 {"data": object}
+     */
+    public function showData(Request $request, Course $course, Lesson $lesson): JsonResponse
+    {
+        // Ensure instructor owns this course
+        if ($course->instructor_id != $request->user()->id) {
+            return response()->json([
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        // Ensure lesson belongs to the course
+        // We check if the lesson's section belongs to this course
+        $section = $lesson->section;
+        if (!$section || $section->course_id != $course->id) {
+            return response()->json([
+                'message' => 'Lesson not found in this course.',
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => $lesson->load('attachments'),
+        ]);
+    }
+
+    /**
      * Get Lesson Details
      * 
      * Retrieve details of a specific lesson, including attachments.
@@ -86,14 +120,14 @@ class LessonController extends Controller
     public function show(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure lesson belongs to section
-        if ($lesson->section_id !== $section->id) {
+        if ($lesson->section_id != $section->id) {
             return response()->json([
                 'message' => 'Lesson not found in this section.',
             ], 404);
@@ -123,14 +157,14 @@ class LessonController extends Controller
     public function update(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure lesson belongs to section
-        if ($lesson->section_id !== $section->id) {
+        if ($lesson->section_id != $section->id) {
             return response()->json([
                 'message' => 'Lesson not found in this section.',
             ], 404);
@@ -174,14 +208,14 @@ class LessonController extends Controller
     public function destroy(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure lesson belongs to section
-        if ($lesson->section_id !== $section->id) {
+        if ($lesson->section_id != $section->id) {
             return response()->json([
                 'message' => 'Lesson not found in this section.',
             ], 404);
@@ -220,14 +254,14 @@ class LessonController extends Controller
     public function reorder(Request $request, Course $course, Section $section): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure section belongs to course
-        if ($section->course_id !== $course->id) {
+        if ($section->course_id != $course->id) {
             return response()->json([
                 'message' => 'Section not found in this course.',
             ], 404);
@@ -267,14 +301,14 @@ class LessonController extends Controller
     public function uploadAttachment(Request $request, Course $course, Section $section, Lesson $lesson): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
         }
 
         // Ensure lesson belongs to section
-        if ($lesson->section_id !== $section->id) {
+        if ($lesson->section_id != $section->id) {
             return response()->json([
                 'message' => 'Lesson not found in this section.',
             ], 404);
@@ -319,7 +353,7 @@ class LessonController extends Controller
     public function deleteAttachment(Request $request, Course $course, Section $section, Lesson $lesson, int $attachmentId): JsonResponse
     {
         // Ensure instructor owns this course
-        if ($course->instructor_id !== $request->user()->id) {
+        if ($course->instructor_id != $request->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 403);
