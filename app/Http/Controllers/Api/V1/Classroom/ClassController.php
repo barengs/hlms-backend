@@ -28,20 +28,27 @@ class ClassController extends Controller
         $user = $request->user();
 
         if ($user->isInstructor()) {
+            // Get batches where at least one course is owned by this instructor and is type 'classroom'
             $classes = Batch::query()
-                ->whereHas('course', function ($query) use ($user) {
+                ->whereHas('courses', function ($query) use ($user) {
                     $query->where('instructor_id', $user->id)
                           ->where('type', 'classroom');
                 })
-                ->with(['course'])
+                ->with(['courses' => function ($query) {
+                    $query->where('type', 'classroom');
+                }])
                 ->latest()
                 ->paginate(20);
         } else {
+            // Get batches where student is enrolled
             $classes = Batch::query()
                 ->whereHas('enrollments', function ($query) use ($user) {
                     $query->where('user_id', $user->id);
                 })
-                ->with(['course.instructor'])
+                ->whereHas('courses', function ($query) {
+                    $query->where('type', 'classroom');
+                })
+                ->with(['courses.instructor'])
                 ->latest()
                 ->paginate(20);
         }
@@ -72,39 +79,53 @@ class ClassController extends Controller
 
         $user = $request->user();
 
-        // 1. Create the Course (Container for content)
-        $course = Course::create([
-            'instructor_id' => $user->id,
-            'category_id' => $request->category_id,
-            'title' => $request->name,
-            'slug' => Str::slug($request->name . '-' . Str::random(5)),
-            'description' => $request->description,
-            'type' => 'classroom', // Distinguish from normal courses
-            'status' => 'published',
-            'published_at' => now(),
-            'price' => 0, // Classes are usually free/internal for now
-            'is_featured' => false,
-        ]);
+        DB::beginTransaction();
+        try {
+            // 1. Create the Course (Container for content)
+            $course = Course::create([
+                'instructor_id' => $user->id,
+                'category_id' => $request->category_id,
+                'title' => $request->name,
+                'slug' => Str::slug($request->name . '-' . Str::random(5)),
+                'description' => $request->description,
+                'type' => 'classroom', // Distinguish from normal courses
+                'status' => 'published',
+                'published_at' => now(),
+                'price' => 0, // Classes are usually free/internal for now
+                'is_featured' => false,
+            ]);
 
-        // 2. Create the Batch (Container for people/schedule)
-        $batch = Batch::create([
-            'course_id' => $course->id,
-            'name' => $request->name, // Same as course title initially
-            'slug' => Str::slug($request->name . '-' . Str::random(5)),
-            'description' => $request->description,
-            'class_code' => Batch::generateClassCode(),
-            'status' => 'open',
-            'start_date' => now(),
-            'enrollment_start_date' => now(),
-            'enrollment_end_date' => now()->addYears(1), // Long duration by default
-            'is_public' => false, // Hidden from public catalog
-            'auto_approve' => true,
-        ]);
+            // 2. Create the Batch (Container for people/schedule)
+            $batch = Batch::create([
+                'name' => $request->name, // Same as course title initially
+                'slug' => Str::slug($request->name . '-' . Str::random(5)),
+                'description' => $request->description,
+                'class_code' => Batch::generateClassCode(),
+                'status' => 'open',
+                'start_date' => now(),
+                'enrollment_start_date' => now(),
+                'enrollment_end_date' => now()->addYears(1), // Long duration by default
+                'is_public' => false, // Hidden from public catalog
+                'auto_approve' => true,
+            ]);
 
-        return response()->json([
-            'message' => 'Class created successfully',
-            'class' => $batch->load('course'),
-        ], 201);
+            // 3. Attach the course to the batch (many-to-many)
+            $batch->courses()->attach($course->id, [
+                'order' => 1,
+                'is_required' => true,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Class created successfully',
+                'class' => $batch->load('courses'),
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
     /**
@@ -119,7 +140,7 @@ class ClassController extends Controller
      */
     public function show($id)
     {
-        $batch = Batch::with(['course.instructor', 'course.sections.lessons'])
+        $batch = Batch::with(['courses.instructor', 'courses.sections.lessons'])
             ->findOrFail($id);
 
         // TODO: distinct between student view and instructor view?
@@ -162,10 +183,17 @@ class ClassController extends Controller
              return response()->json(['message' => 'Already enrolled in this class'], 409);
         }
 
+        // Get the first course from the batch (classroom classes should only have one course)
+        $course = $batch->courses()->first();
+
+        if (!$course) {
+            return response()->json(['message' => 'Class has no associated course'], 500);
+        }
+
         // Create Enrollment
         Enrollment::create([
             'user_id' => $user->id,
-            'course_id' => $batch->course_id,
+            'course_id' => $course->id,
             'batch_id' => $batch->id,
             'enrolled_at' => now(),
             'is_completed' => false,
@@ -176,7 +204,7 @@ class ClassController extends Controller
 
         return response()->json([
             'message' => 'Successfully joined the class',
-            'class' => $batch,
+            'class' => $batch->load('courses'),
         ]);
     }
 }
