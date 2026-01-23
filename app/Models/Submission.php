@@ -25,7 +25,7 @@ class Submission extends Model
         'graded_by',
     ];
 
-    protected function casts(): array
+    public function casts(): array
     {
         return [
             'answers' => 'array',
