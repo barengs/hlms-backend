@@ -47,7 +47,7 @@ class DashboardController extends Controller
                 ->where('due_date', '>', now())
                 ->orderBy('due_date', 'asc')
                 ->take(3)
-                ->with('batch.course:id,title')
+                ->with('batch.courses:id,title')
                 ->get();
 
             $data = [

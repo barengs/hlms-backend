@@ -33,10 +33,10 @@ class AssignmentController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $assignments = Assignment::whereHas('batch.course', function ($query) use ($request) {
+            $assignments = Assignment::whereHas('batch.courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
-                ->with(['batch:id,name,course_id', 'lesson:id,title'])
+                ->with(['batch:id,name', 'lesson:id,title'])
                 ->when($request->batch_id, function ($query, $batchId) {
                     $query->where('batch_id', $batchId);
                 })
@@ -95,7 +95,7 @@ class AssignmentController extends Controller
 
             // Verify batch ownership
             Batch::where('id', $validated['batch_id'])
-                ->whereHas('course', function ($query) use ($request) {
+                ->whereHas('courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->firstOrFail();
@@ -135,11 +135,11 @@ class AssignmentController extends Controller
     public function show(Request $request, string $assignmentId): JsonResponse
     {
         try {
-            $assignment = Assignment::whereHas('batch.course', function ($query) use ($request) {
+            $assignment = Assignment::whereHas('batch.courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->with([
-                    'batch:id,name,course_id',
+                    'batch:id,name',
                     'lesson:id,title,content',
                     'submissions:id,assignment_id,user_id,status,submitted_at,points_awarded'
                 ])
@@ -167,7 +167,7 @@ class AssignmentController extends Controller
     public function update(Request $request, string $assignmentId): JsonResponse
     {
         try {
-            $assignment = Assignment::whereHas('batch.course', function ($query) use ($request) {
+            $assignment = Assignment::whereHas('batch.courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->findOrFail($assignmentId);
@@ -212,7 +212,7 @@ class AssignmentController extends Controller
     public function destroy(Request $request, string $assignmentId): JsonResponse
     {
         try {
-            $assignment = Assignment::whereHas('batch.course', function ($query) use ($request) {
+            $assignment = Assignment::whereHas('batch.courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->findOrFail($assignmentId);
@@ -253,7 +253,7 @@ class AssignmentController extends Controller
             $submission = \App\Models\Submission::where('id', $submissionId)
                 ->whereHas('assignment', function ($q) use ($assignmentId, $request) {
                     $q->where('id', $assignmentId)
-                      ->whereHas('batch.course', function ($inner) use ($request) {
+                      ->whereHas('batch.courses', function ($inner) use ($request) {
                         $inner->where('instructor_id', $request->user()->id);
                     });
                 })

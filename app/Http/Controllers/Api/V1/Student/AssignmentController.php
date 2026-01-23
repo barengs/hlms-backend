@@ -44,7 +44,7 @@ class AssignmentController extends Controller
                 $query->where('batch_id', $request->batch_id);
             }
 
-            $assignments = $query->with(['batch.course:id,title', 'submissions' => function($q) use ($user) {
+            $assignments = $query->with(['batch.courses:id,title', 'submissions' => function($q) use ($user) {
                     $q->where('user_id', $user->id);
                 }])
                 ->orderBy('due_date', 'asc')

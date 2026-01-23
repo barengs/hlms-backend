@@ -138,7 +138,7 @@ class DiscussionController extends Controller
     {
         $discussion = Discussion::where('user_id', $request->user()->id)
             ->orWhere(function ($query) use ($request) {
-                $query->whereHas('batch.course', function ($q) use ($request) {
+                $query->whereHas('batch.courses', function ($q) use ($request) {
                     $q->where('instructor_id', $request->user()->id);
                 });
             })
@@ -161,7 +161,7 @@ class DiscussionController extends Controller
      */
     public function togglePin(Request $request, string $discussionId): JsonResponse
     {
-        $discussion = Discussion::whereHas('batch.course', function ($query) use ($request) {
+        $discussion = Discussion::whereHas('batch.courses', function ($query) use ($request) {
                 $query->where('instructor_id', $request->user()->id);
             })
             ->findOrFail($discussionId);
@@ -181,7 +181,7 @@ class DiscussionController extends Controller
      */
     public function toggleLock(Request $request, string $discussionId): JsonResponse
     {
-        $discussion = Discussion::whereHas('batch.course', function ($query) use ($request) {
+        $discussion = Discussion::whereHas('batch.courses', function ($query) use ($request) {
                 $query->where('instructor_id', $request->user()->id);
             })
             ->findOrFail($discussionId);

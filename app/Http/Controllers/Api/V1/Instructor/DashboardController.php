@@ -106,11 +106,11 @@ class DashboardController extends Controller
             $averageRating = Course::where('instructor_id', $user->id)->avg('average_rating') ?? 0;
 
             // 2. Action Items (To Do)
-            $pendingGrading = Submission::whereHas('assignment.batch.course', function($q) use ($user) {
+            $pendingGrading = Submission::whereHas('assignment.batch.courses', function($q) use ($user) {
                 $q->where('instructor_id', $user->id);
             })->where('status', 'submitted')->count();
 
-            $unansweredQuestions = \App\Models\Discussion::whereHas('batch.course', function($q) use ($user) {
+            $unansweredQuestions = \App\Models\Discussion::whereHas('batch.courses', function($q) use ($user) {
                 $q->where('instructor_id', $user->id);
             })->whereNull('parent_id') // Threads
               ->whereDoesntHave('replies', function($q) use ($user) {
@@ -145,7 +145,7 @@ class DashboardController extends Controller
                     'created_at' => $e->created_at,
                 ]);
 
-            $recentSubmissions = Submission::whereHas('assignment.batch.course', fn($q) => $q->where('instructor_id', $user->id))
+            $recentSubmissions = Submission::whereHas('assignment.batch.courses', fn($q) => $q->where('instructor_id', $user->id))
                 ->with(['user.profile', 'assignment'])
                 ->latest()
                 ->take(5)
