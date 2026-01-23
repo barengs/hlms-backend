@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use App\Models\Category;
 use App\Models\Course;
+use App\Models\LearningPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -161,14 +162,16 @@ class CourseCatalogController extends Controller
     {
         $query = Batch::public()
             ->with([
-                'course:id,title,slug,subtitle,thumbnail,level,price,discount_price,instructor_id,category_id',
-                'course.instructor:id,name',
-                'course.category:id,name,slug'
+                'courses:id,title,slug,subtitle,thumbnail,level,price,discount_price,instructor_id,category_id',
+                'courses.instructor:id,name',
+                'courses.category:id,name,slug'
             ]);
 
         // Filter by course
         if ($request->has('course_id')) {
-            $query->where('course_id', $request->course_id);
+            $query->whereHas('courses', function ($q) use ($request) {
+                $q->where('courses.id', $request->course_id);
+            });
         }
 
         // Filter by status
@@ -222,11 +225,11 @@ class CourseCatalogController extends Controller
         }
 
         $batch->load([
-            'course:id,title,slug,subtitle,description,thumbnail,preview_video,level,language,price,discount_price,requirements,outcomes,target_audience,instructor_id,category_id,total_duration,total_lessons,average_rating,total_reviews',
-            'course.instructor:id,name,email',
-            'course.instructor.profile:id,user_id,bio,headline,expertise',
-            'course.category:id,name,slug',
-            'course.sections:id,course_id,title,sort_order',
+            'courses:id,title,slug,subtitle,description,thumbnail,preview_video,level,language,price,discount_price,requirements,outcomes,target_audience,instructor_id,category_id,total_duration,total_lessons,average_rating,total_reviews',
+            'courses.instructor:id,name,email',
+            'courses.instructor.profile:id,user_id,bio,headline,expertise',
+            'courses.category:id,name,slug',
+            'courses.sections:id,course_id,title,sort_order',
         ]);
 
         // Calculate available slots
@@ -243,6 +246,92 @@ class CourseCatalogController extends Controller
                 'has_started' => $batch->has_started,
                 'has_ended' => $batch->has_ended,
                 'available_slots' => $availableSlots,
+            ],
+        ]);
+    }
+
+    /**
+     * Display a listing of public learning paths.
+     */
+    public function learningPaths(Request $request): JsonResponse
+    {
+        $query = LearningPath::active()
+            ->with(['category:id,name,slug']);
+
+        // Filter by category
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Filter by level
+        if ($request->has('level')) {
+            $query->where('level', $request->level);
+        }
+
+        // Only featured
+        if ($request->boolean('featured')) {
+            $query->featured();
+        }
+
+        // Sorting
+        $sort = $request->get('sort', 'sort_order');
+        switch ($sort) {
+            case 'latest':
+                $query->latest();
+                break;
+            case 'sort_order':
+                $query->orderBy('sort_order');
+                break;
+            case 'title':
+                $query->orderBy('title');
+                break;
+        }
+
+        $perPage = min($request->get('per_page', 12), 50);
+        $learningPaths = $query->paginate($perPage);
+
+        return response()->json($learningPaths);
+    }
+
+    /**
+     * Display a specific public learning path with courses.
+     */
+    public function learningPathDetail($slug): JsonResponse
+    {
+        $learningPath = LearningPath::active()
+            ->with([
+                'category:id,name,slug',
+                'courses:id,title,slug,subtitle,thumbnail,level,price,discount_price,total_duration,total_lessons,average_rating,instructor_id,category_id',
+                'courses.instructor:id,name',
+                'courses.category:id,name,slug',
+            ])
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        // Get courses with pivot data ordered by step_number
+        $coursesWithSteps = $learningPath->courses->map(function ($course) {
+            return [
+                'step_number' => $course->pivot->step_number,
+                'step_title' => $course->pivot->step_title,
+                'step_description' => $course->pivot->step_description,
+                'is_required' => $course->pivot->is_required,
+                'course' => $course,
+            ];
+        })->sortBy('step_number')->values();
+
+        return response()->json([
+            'data' => [
+                'id' => $learningPath->id,
+                'title' => $learningPath->title,
+                'slug' => $learningPath->slug,
+                'description' => $learningPath->description,
+                'thumbnail' => $learningPath->thumbnail,
+                'level' => $learningPath->level,
+                'estimated_duration' => $learningPath->estimated_duration,
+                'is_featured' => $learningPath->is_featured,
+                'category' => $learningPath->category,
+                'courses' => $coursesWithSteps,
+                'total_courses' => $coursesWithSteps->count(),
             ],
         ]);
     }

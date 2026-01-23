@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -113,11 +114,32 @@ class Course extends Model
     }
 
     /**
-     * Get all batches for this course.
+     * Get all batches that include this course (many-to-many).
      */
-    public function batches(): HasMany
+    public function batches(): BelongsToMany
     {
-        return $this->hasMany(Batch::class);
+        return $this->belongsToMany(Batch::class, 'batch_course')
+            ->withPivot('order', 'is_required')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get all learning path items for this course.
+     */
+    public function learningPathItems(): HasMany
+    {
+        return $this->hasMany(LearningPathItem::class);
+    }
+
+    /**
+     * Get all learning paths that include this course (many-to-many).
+     */
+    public function learningPaths(): BelongsToMany
+    {
+        return $this->belongsToMany(LearningPath::class, 'learning_path_items')
+            ->withPivot('step_number', 'step_title', 'step_description', 'is_required', 'sort_order')
+            ->withTimestamps()
+            ->orderBy('learning_path_items.step_number');
     }
 
     /**

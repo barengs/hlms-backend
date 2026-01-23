@@ -88,6 +88,12 @@ Route::prefix('v1')->group(function () {
         Route::patch('categories/{category}', [CategoryController::class, 'update']);
         Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
         Route::post('categories/reorder', [CategoryController::class, 'reorder']);
+
+        // Learning Paths CRUD
+        Route::apiResource('learning-paths', \App\Http\Controllers\Api\V1\Admin\LearningPathController::class);
+        Route::post('learning-paths/{learningPath}/courses', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'addCourse']);
+        Route::delete('learning-paths/{learningPath}/courses/{courseId}', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'removeCourse']);
+        Route::post('learning-paths/{learningPath}/reorder', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'reorder']);
     });
 
     /*
@@ -225,6 +231,10 @@ Route::prefix('v1')->group(function () {
         // Batches (for landing page)
         Route::get('batches', [CourseCatalogController::class, 'batches']);
         Route::get('batches/{batch}', [CourseCatalogController::class, 'batchDetail']);
+
+        // Learning Paths (recommendations/guides)
+        Route::get('learning-paths', [CourseCatalogController::class, 'learningPaths']);
+        Route::get('learning-paths/{slug}', [CourseCatalogController::class, 'learningPathDetail']);
     });
 
     /*

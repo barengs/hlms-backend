@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Batch extends Model
@@ -43,11 +44,14 @@ class Batch extends Model
     }
 
     /**
-     * Get the course this batch belongs to.
+     * Get the courses in this batch (many-to-many).
      */
-    public function course(): BelongsTo
+    public function courses(): BelongsToMany
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsToMany(Course::class, 'batch_course')
+            ->withPivot('order', 'is_required')
+            ->withTimestamps()
+            ->orderBy('batch_course.order');
     }
 
     /**

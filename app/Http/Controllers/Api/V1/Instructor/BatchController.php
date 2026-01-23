@@ -33,12 +33,14 @@ class BatchController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $batches = Batch::whereHas('course', function ($query) use ($request) {
+            $batches = Batch::whereHas('courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
-                ->with(['course:id,title,slug', 'assignments', 'enrollments'])
+                ->with(['courses:id,title,slug', 'assignments', 'enrollments'])
                 ->when($request->course_id, function ($query, $courseId) {
-                    $query->where('course_id', $courseId);
+                    $query->whereHas('courses', function ($q) use ($courseId) {
+                        $q->where('courses.id', $courseId);
+                    });
                 })
                 ->when($request->status, function ($query, $status) {
                     $query->where('status', $status);
@@ -77,7 +79,10 @@ class BatchController extends Controller
     {
         try {
             $validated = $request->validate([
-                'course_id' => ['required', 'exists:courses,id'],
+                'courses' => ['required', 'array', 'min:1'],
+                'courses.*.course_id' => ['required', 'exists:courses,id'],
+                'courses.*.order' => ['required', 'integer', 'min:1'],
+                'courses.*.is_required' => ['boolean'],
                 'name' => ['required', 'string', 'max:255'],
                 'description' => ['nullable', 'string'],
                 'start_date' => ['nullable', 'date'],
@@ -90,17 +95,38 @@ class BatchController extends Controller
                 'auto_approve' => ['boolean'],
             ]);
 
-            // Verify owner
-            Course::where('id', $validated['course_id'])
+            // Verify ownership of all courses
+            $courseIds = collect($validated['courses'])->pluck('course_id')->toArray();
+            $ownedCourses = Course::whereIn('id', $courseIds)
                 ->where('instructor_id', $request->user()->id)
-                ->firstOrFail();
+                ->count();
 
-            $validated['slug'] = Str::slug($validated['name']) . '-' . time();
-            $validated['current_students'] = 0;
+            if ($ownedCourses !== count($courseIds)) {
+                return $this->errorResponse('One or more courses not found or access denied.', 403);
+            }
 
-            $batch = Batch::create($validated);
+            // Create batch
+            $batchData = collect($validated)->except('courses')->toArray();
+            $batchData['slug'] = Str::slug($validated['name']) . '-' . time();
+            $batchData['current_students'] = 0;
 
-            return $this->successResponse(new BatchResource($batch->load('course')), 'Batch created successfully.', 201);
+            $batch = Batch::create($batchData);
+
+            // Attach courses to batch
+            $coursesData = [];
+            foreach ($validated['courses'] as $course) {
+                $coursesData[$course['course_id']] = [
+                    'order' => $course['order'],
+                    'is_required' => $course['is_required'] ?? true,
+                ];
+            }
+            $batch->courses()->attach($coursesData);
+
+            return $this->successResponse(
+                new BatchResource($batch->load('courses')), 
+                'Batch created successfully.', 
+                201
+            );
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422, $e->errors());
@@ -124,11 +150,11 @@ class BatchController extends Controller
     public function show(Request $request, string $batchId): JsonResponse
     {
         try {
-            $batch = Batch::whereHas('course', function ($query) use ($request) {
+            $batch = Batch::whereHas('courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->with([
-                    'course:id,title,slug',
+                    'courses:id,title,slug',
                     'assignments',
                     'enrollments.user:id,name,email'
                 ])
@@ -157,12 +183,16 @@ class BatchController extends Controller
     public function update(Request $request, string $batchId): JsonResponse
     {
         try {
-            $batch = Batch::whereHas('course', function ($query) use ($request) {
+            $batch = Batch::whereHas('courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->findOrFail($batchId);
 
             $validated = $request->validate([
+                'courses' => ['sometimes', 'array', 'min:1'],
+                'courses.*.course_id' => ['required_with:courses', 'exists:courses,id'],
+                'courses.*.order' => ['required_with:courses', 'integer', 'min:1'],
+                'courses.*.is_required' => ['boolean'],
                 'name' => ['sometimes', 'string', 'max:255'],
                 'description' => ['nullable', 'string'],
                 'start_date' => ['nullable', 'date'],
@@ -175,9 +205,37 @@ class BatchController extends Controller
                 'auto_approve' => ['boolean'],
             ]);
 
-            $batch->update($validated);
+            // Update batch basic info
+            $batchData = collect($validated)->except('courses')->toArray();
+            $batch->update($batchData);
 
-            return $this->successResponse(new BatchResource($batch->fresh('course')), 'Batch updated successfully.');
+            // Update courses if provided
+            if (isset($validated['courses'])) {
+                // Verify ownership of all courses
+                $courseIds = collect($validated['courses'])->pluck('course_id')->toArray();
+                $ownedCourses = Course::whereIn('id', $courseIds)
+                    ->where('instructor_id', $request->user()->id)
+                    ->count();
+
+                if ($ownedCourses !== count($courseIds)) {
+                    return $this->errorResponse('One or more courses not found or access denied.', 403);
+                }
+
+                // Sync courses
+                $coursesData = [];
+                foreach ($validated['courses'] as $course) {
+                    $coursesData[$course['course_id']] = [
+                        'order' => $course['order'],
+                        'is_required' => $course['is_required'] ?? true,
+                    ];
+                }
+                $batch->courses()->sync($coursesData);
+            }
+
+            return $this->successResponse(
+                new BatchResource($batch->fresh('courses')), 
+                'Batch updated successfully.'
+            );
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422, $e->errors());
@@ -201,7 +259,7 @@ class BatchController extends Controller
     public function destroy(Request $request, string $batchId): JsonResponse
     {
         try {
-            $batch = Batch::whereHas('course', function ($query) use ($request) {
+            $batch = Batch::whereHas('courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->findOrFail($batchId);
@@ -234,7 +292,7 @@ class BatchController extends Controller
     public function enrollmentStats(Request $request, string $batchId): JsonResponse
     {
         try {
-            $batch = Batch::whereHas('course', function ($query) use ($request) {
+            $batch = Batch::whereHas('courses', function ($query) use ($request) {
                     $query->where('instructor_id', $request->user()->id);
                 })
                 ->findOrFail($batchId);
