@@ -54,6 +54,7 @@ Route::prefix('v1')->group(function () {
         // Protected routes
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);
+            Route::post('/refresh', [AuthController::class, 'refresh']);
             Route::get('/user', [AuthController::class, 'user']);
 
             // Email verification resend

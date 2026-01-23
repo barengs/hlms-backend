@@ -38,7 +38,10 @@ class AuthController extends Controller
 
         event(new Registered($user));
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Create token with expiration
+        $expiresInMinutes = config('sanctum.expiration', 60);
+        $expiresAt = now()->addMinutes($expiresInMinutes);
+        $token = $user->createToken('auth_token', ['*'], $expiresAt)->plainTextToken;
 
         return response()->json([
             'message' => 'Registration successful. Please verify your email.',
@@ -46,6 +49,8 @@ class AuthController extends Controller
                 'user' => $user->load('profile', 'roles'),
                 'token' => $token,
                 'token_type' => 'Bearer',
+                'expires_in' => $expiresInMinutes * 60, // in seconds
+                'expires_at' => $expiresAt->toIso8601String(),
             ],
         ], 201);
     }
@@ -71,7 +76,10 @@ class AuthController extends Controller
         // Revoke all previous tokens
         $user->tokens()->delete();
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Create token with expiration
+        $expiresInMinutes = config('sanctum.expiration', 60);
+        $expiresAt = now()->addMinutes($expiresInMinutes);
+        $token = $user->createToken('auth_token', ['*'], $expiresAt)->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful.',
@@ -79,6 +87,8 @@ class AuthController extends Controller
                 'user' => $user->load('profile', 'roles'),
                 'token' => $token,
                 'token_type' => 'Bearer',
+                'expires_in' => $expiresInMinutes * 60, // in seconds
+                'expires_at' => $expiresAt->toIso8601String(),
             ],
         ]);
     }
@@ -92,6 +102,36 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Logout successful.',
+        ]);
+    }
+
+    /**
+     * Refresh authentication token.
+     * 
+     * This endpoint allows the frontend to refresh the token before it expires,
+     * maintaining the user's session if they are still active.
+     */
+    public function refresh(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Revoke current token
+        $request->user()->currentAccessToken()->delete();
+
+        // Create new token with expiration
+        $expiresInMinutes = config('sanctum.expiration', 60);
+        $expiresAt = now()->addMinutes($expiresInMinutes);
+        $token = $user->createToken('auth_token', ['*'], $expiresAt)->plainTextToken;
+
+        return response()->json([
+            'message' => 'Token refreshed successfully.',
+            'data' => [
+                'user' => $user->load('profile', 'roles'),
+                'token' => $token,
+                'token_type' => 'Bearer',
+                'expires_in' => $expiresInMinutes * 60, // in seconds
+                'expires_at' => $expiresAt->toIso8601String(),
+            ],
         ]);
     }
 
