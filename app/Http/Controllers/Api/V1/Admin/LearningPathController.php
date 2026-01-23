@@ -16,7 +16,11 @@ class LearningPathController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = LearningPath::with(['category:id,name,slug', 'courses:id,title']);
+        $query = LearningPath::with([
+            'category:id,name,slug',
+            'courses:id,title,slug,level,thumbnail,instructor_id',
+            'courses.instructor:id,name',
+        ]);
 
         // Filter by category
         if ($request->has('category_id')) {
@@ -38,9 +42,11 @@ class LearningPathController extends Controller
             $query->featured();
         }
 
-        $learningPaths = $query->orderBy('sort_order')->paginate($request->per_page ?? 15);
+        $learningPaths = $query->orderBy('sort_order')->get();
 
-        return response()->json($learningPaths);
+        return response()->json([
+            'data' => $learningPaths,
+        ]);
     }
 
     /**
