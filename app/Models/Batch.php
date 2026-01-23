@@ -101,6 +101,23 @@ class Batch extends Model
     }
 
     /**
+     * Scope for public batches (visible on landing page).
+     */
+    public function scopePublic($query)
+    {
+        return $query->where('is_public', true);
+    }
+
+    /**
+     * Scope for upcoming batches.
+     */
+    public function scopeUpcoming($query)
+    {
+        return $query->where('start_date', '>', now())
+            ->orderBy('start_date');
+    }
+
+    /**
      * Check if the batch is currently open for enrollment.
      */
     public function getIsOpenForEnrollmentAttribute(): bool

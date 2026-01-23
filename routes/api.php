@@ -64,6 +64,17 @@ Route::prefix('v1')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Public Category Routes (Read-only)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('categories')->group(function () {
+        // Public GET endpoints - no authentication required
+        Route::get('/', [CategoryController::class, 'index']);
+        Route::get('/{category}', [CategoryController::class, 'show']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Admin Routes
     |--------------------------------------------------------------------------
     */
@@ -71,8 +82,11 @@ Route::prefix('v1')->group(function () {
         // Dashboard
         Route::get('dashboard', [AdminDashboardController::class, 'index']);
 
-        // Categories CRUD
-        Route::apiResource('categories', CategoryController::class);
+        // Categories CRUD (Write operations only - GET moved to public routes)
+        Route::post('categories', [CategoryController::class, 'store']);
+        Route::put('categories/{category}', [CategoryController::class, 'update']);
+        Route::patch('categories/{category}', [CategoryController::class, 'update']);
+        Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
         Route::post('categories/reorder', [CategoryController::class, 'reorder']);
     });
 
@@ -84,9 +98,6 @@ Route::prefix('v1')->group(function () {
     Route::prefix('instructor')->middleware(['auth:sanctum', 'role:instructor|admin'])->group(function () {
         // Dashboard
         Route::get('dashboard', [InstructorDashboardController::class, 'index']);
-
-        // Categories (Read-only for instructors)
-        Route::get('categories', [CategoryController::class, 'index']);
 
         // Courses CRUD
         Route::apiResource('courses', CourseController::class);
@@ -210,6 +221,10 @@ Route::prefix('v1')->group(function () {
         Route::get('courses/{slug}', [CourseCatalogController::class, 'show']);
         Route::get('courses/{course}/related', [CourseCatalogController::class, 'related']);
         Route::get('categories', [CourseCatalogController::class, 'categories']);
+        
+        // Batches (for landing page)
+        Route::get('batches', [CourseCatalogController::class, 'batches']);
+        Route::get('batches/{batch}', [CourseCatalogController::class, 'batchDetail']);
     });
 
     /*

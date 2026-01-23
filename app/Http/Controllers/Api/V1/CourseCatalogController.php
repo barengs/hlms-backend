@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Batch;
 use App\Models\Category;
 use App\Models\Course;
 use Illuminate\Http\JsonResponse;
@@ -150,6 +151,99 @@ class CourseCatalogController extends Controller
 
         return response()->json([
             'data' => $categories,
+        ]);
+    }
+
+    /**
+     * Display a listing of public batches for landing page.
+     */
+    public function batches(Request $request): JsonResponse
+    {
+        $query = Batch::public()
+            ->with([
+                'course:id,title,slug,subtitle,thumbnail,level,price,discount_price,instructor_id,category_id',
+                'course.instructor:id,name',
+                'course.category:id,name,slug'
+            ]);
+
+        // Filter by course
+        if ($request->has('course_id')) {
+            $query->where('course_id', $request->course_id);
+        }
+
+        // Filter by status
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Only open for enrollment
+        if ($request->boolean('open_enrollment')) {
+            $query->openForEnrollment();
+        }
+
+        // Only upcoming batches
+        if ($request->boolean('upcoming')) {
+            $query->upcoming();
+        }
+
+        // Sorting
+        $sort = $request->get('sort', 'latest');
+        switch ($sort) {
+            case 'latest':
+                $query->latest();
+                break;
+            case 'oldest':
+                $query->oldest();
+                break;
+            case 'start_date':
+                $query->orderBy('start_date');
+                break;
+            case 'enrollment_end':
+                $query->orderBy('enrollment_end_date');
+                break;
+        }
+
+        $perPage = min($request->get('per_page', 12), 50);
+        $batches = $query->paginate($perPage);
+
+        return response()->json($batches);
+    }
+
+    /**
+     * Display a specific public batch detail.
+     */
+    public function batchDetail(Batch $batch): JsonResponse
+    {
+        // Only show public batches
+        if (!$batch->is_public) {
+            return response()->json([
+                'message' => 'Batch not found or not available.',
+            ], 404);
+        }
+
+        $batch->load([
+            'course:id,title,slug,subtitle,description,thumbnail,preview_video,level,language,price,discount_price,requirements,outcomes,target_audience,instructor_id,category_id,total_duration,total_lessons,average_rating,total_reviews',
+            'course.instructor:id,name,email',
+            'course.instructor.profile:id,user_id,bio,headline,expertise',
+            'course.category:id,name,slug',
+            'course.sections:id,course_id,title,sort_order',
+        ]);
+
+        // Calculate available slots
+        $availableSlots = null;
+        if ($batch->max_students !== null) {
+            $availableSlots = max(0, $batch->max_students - $batch->current_students);
+        }
+
+        return response()->json([
+            'data' => $batch,
+            'meta' => [
+                'is_open_for_enrollment' => $batch->is_open_for_enrollment,
+                'is_full' => $batch->is_full,
+                'has_started' => $batch->has_started,
+                'has_ended' => $batch->has_ended,
+                'available_slots' => $availableSlots,
+            ],
         ]);
     }
 }
