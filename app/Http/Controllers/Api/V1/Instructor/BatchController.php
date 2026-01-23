@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use App\Http\Resources\Api\V1\BatchResource;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class BatchController extends Controller
 {
@@ -105,28 +106,40 @@ class BatchController extends Controller
                 return $this->errorResponse('One or more courses not found or access denied.', 403);
             }
 
-            // Create batch
-            $batchData = collect($validated)->except('courses')->toArray();
-            $batchData['slug'] = Str::slug($validated['name']) . '-' . time();
-            $batchData['current_students'] = 0;
+            // Use transaction to ensure atomicity
+            DB::beginTransaction();
+            try {
+                // Create batch
+                $batchData = collect($validated)->except('courses')->toArray();
+                $batchData['slug'] = Str::slug($validated['name']) . '-' . time();
+                $batchData['current_students'] = 0;
+                $batchData['type'] = 'structured'; // Mark as structured batch
 
-            $batch = Batch::create($batchData);
+                $batch = Batch::create($batchData);
 
-            // Attach courses to batch
-            $coursesData = [];
-            foreach ($validated['courses'] as $course) {
-                $coursesData[$course['course_id']] = [
-                    'order' => $course['order'],
-                    'is_required' => $course['is_required'] ?? true,
-                ];
+                // Attach courses to batch
+                $coursesData = [];
+                foreach ($validated['courses'] as $course) {
+                    $coursesData[$course['course_id']] = [
+                        'order' => $course['order'],
+                        'is_required' => $course['is_required'] ?? true,
+                    ];
+                }
+                $batch->courses()->attach($coursesData);
+
+                DB::commit();
+
+                return $this->successResponse(
+                    new BatchResource($batch->load('courses')), 
+                    'Batch created successfully.', 
+                    201
+                );
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Batch Creation Transaction Error: ' . $e->getMessage());
+                throw $e; // Re-throw to be caught by outer catch
             }
-            $batch->courses()->attach($coursesData);
-
-            return $this->successResponse(
-                new BatchResource($batch->load('courses')), 
-                'Batch created successfully.', 
-                201
-            );
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422, $e->errors());
@@ -207,35 +220,52 @@ class BatchController extends Controller
 
             // Update batch basic info
             $batchData = collect($validated)->except('courses')->toArray();
-            $batch->update($batchData);
+            
+            // Use transaction to ensure atomicity
+            DB::beginTransaction();
+            try {
+                $batch->update($batchData);
 
-            // Update courses if provided
-            if (isset($validated['courses'])) {
-                // Verify ownership of all courses
-                $courseIds = collect($validated['courses'])->pluck('course_id')->toArray();
-                $ownedCourses = Course::whereIn('id', $courseIds)
-                    ->where('instructor_id', $request->user()->id)
-                    ->count();
+                // Update courses if provided
+                if (isset($validated['courses'])) {
+                    // Verify ownership of all courses
+                    $courseIds = collect($validated['courses'])->pluck('course_id')->toArray();
+                    $ownedCourses = Course::whereIn('id', $courseIds)
+                        ->where('instructor_id', $request->user()->id)
+                        ->count();
 
-                if ($ownedCourses !== count($courseIds)) {
-                    return $this->errorResponse('One or more courses not found or access denied.', 403);
+                    if ($ownedCourses !== count($courseIds)) {
+                        throw new \Exception('One or more courses not found or access denied.');
+                    }
+
+                    // Sync courses (replaces all existing courses)
+                    $coursesData = [];
+                    foreach ($validated['courses'] as $course) {
+                        $coursesData[$course['course_id']] = [
+                            'order' => $course['order'],
+                            'is_required' => $course['is_required'] ?? true,
+                        ];
+                    }
+                    $batch->courses()->sync($coursesData);
                 }
 
-                // Sync courses
-                $coursesData = [];
-                foreach ($validated['courses'] as $course) {
-                    $coursesData[$course['course_id']] = [
-                        'order' => $course['order'],
-                        'is_required' => $course['is_required'] ?? true,
-                    ];
+                DB::commit();
+
+                return $this->successResponse(
+                    new BatchResource($batch->fresh('courses')), 
+                    'Batch updated successfully.'
+                );
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Batch Update Transaction Error: ' . $e->getMessage());
+                
+                if (str_contains($e->getMessage(), 'courses not found')) {
+                    return $this->errorResponse($e->getMessage(), 403);
                 }
-                $batch->courses()->sync($coursesData);
+                
+                throw $e; // Re-throw to be caught by outer catch
             }
-
-            return $this->successResponse(
-                new BatchResource($batch->fresh('courses')), 
-                'Batch updated successfully.'
-            );
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422, $e->errors());

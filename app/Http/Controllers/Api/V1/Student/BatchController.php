@@ -25,22 +25,26 @@ class BatchController extends Controller
      */
     public function index(Request $request, string $courseId): JsonResponse
     {
-        // First check if user has access to this course (has purchased it)
-        $enrollment = Enrollment::where('user_id', $request->user()->id)
+        $user = $request->user();
+
+        // Check if user has enrollment for this course
+        $enrollment = Enrollment::where('user_id', $user->id)
             ->where('course_id', $courseId)
             ->active()
             ->first();
 
-        // Optional: If you want to show batches even before purchase, you can remove the enrollment check.
-        // But for "My Classes", they likely need to be enrolled.
-        // The requirements say "Pendaftaran Kelas Terstruktur: Melihat jadwal batch yang tersedia dan mendaftar".
-        // Let's allow viewing if it's public, but maybe highlight the one they are in.
-
-        $batches = Batch::where('course_id', $courseId)
-            ->where('status', '!=', 'draft') // Show open, in_progress, completed, cancelled
+        // Get structured batches that include this course
+        $batches = Batch::structured()  // Only structured batches, not classroom
+            ->whereHas('courses', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            })
+            ->where('status', '!=', 'draft')
             ->when(!$request->include_all, function($q) {
                 $q->where('is_public', true);
             })
+            ->with(['courses' => function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            }])
             ->orderBy('start_date', 'asc')
             ->get();
 
@@ -60,7 +64,11 @@ class BatchController extends Controller
      */
     public function show(string $batchId): JsonResponse
     {
-        $batch = Batch::with(['course:id,title,instructor_id', 'course.instructor:id,name'])
+        $batch = Batch::with([
+                'courses:id,title,slug,instructor_id',
+                'courses.instructor:id,name',
+                'instructor:id,name'
+            ])
             ->findOrFail($batchId);
 
         return response()->json([
@@ -80,7 +88,7 @@ class BatchController extends Controller
     public function enroll(Request $request, string $batchId): JsonResponse
     {
         $user = $request->user();
-        $batch = Batch::findOrFail($batchId);
+        $batch = Batch::structured()->with('courses')->findOrFail($batchId);
         
         // 1. Check if Batch is open for enrollment
         if (!$batch->is_open_for_enrollment) {
@@ -89,31 +97,39 @@ class BatchController extends Controller
             ], 422);
         }
 
-        // 2. Check if user has purchased the course (Validation: Must have an active enrollment record)
-        $enrollment = Enrollment::where('user_id', $user->id)
-            ->where('course_id', $batch->course_id)
+        // 2. Get the first course from batch (structured batches should have courses)
+        $course = $batch->courses->first();
+        
+        if (!$course) {
+            return response()->json([
+                'message' => 'This batch has no courses available.'
+            ], 422);
+        }
+
+        // 3. Check if user has purchased the course
+        $existingEnrollment = Enrollment::where('user_id', $user->id)
+            ->where('course_id', $course->id)
             ->active()
             ->first();
 
-        if (!$enrollment) {
+        if (!$existingEnrollment) {
             return response()->json([
                 'message' => 'You must purchase the course before joining a batch.'
             ], 403);
         }
 
-        // 3. Check if already in a batch for this course?
-        if ($enrollment->batch_id) {
-            if ($enrollment->batch_id == $batchId) {
+        // 4. Check if already in a batch
+        if ($existingEnrollment->batch_id) {
+            if ($existingEnrollment->batch_id == $batchId) {
                 return response()->json(['message' => 'Already enrolled in this batch.']);
             }
-            // Decide business logic: Can they switch? For now, prevent "silent" switch.
             return response()->json([
                 'message' => 'You are already enrolled in another batch for this course. Please contact support to switch.'
             ], 422);
         }
 
-        // 4. Proceed to enroll (Update enrollment & batch count)
-        DB::transaction(function () use ($batch, $enrollment) {
+        // 5. Proceed to enroll
+        DB::transaction(function () use ($batch, $existingEnrollment) {
             // Lock batch row to prevent race condition on quota
             $lockedBatch = Batch::where('id', $batch->id)->lockForUpdate()->first();
             
@@ -121,7 +137,7 @@ class BatchController extends Controller
                 throw new \Exception('Batch is full.');
             }
 
-            $enrollment->update([
+            $existingEnrollment->update([
                 'batch_id' => $lockedBatch->id
             ]);
 
@@ -130,7 +146,7 @@ class BatchController extends Controller
 
         return response()->json([
             'message' => 'Successfully enrolled in batch.',
-            'data' => $batch
+            'data' => $batch->load('courses')
         ]);
     }
 }

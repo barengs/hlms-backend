@@ -14,10 +14,12 @@ class Batch extends Model
 
 
     protected $fillable = [
+        'instructor_id',
         'name',
         'slug',
         'class_code',
         'description',
+        'type',
         'start_date',
         'end_date',
         'enrollment_start_date',
@@ -29,7 +31,7 @@ class Batch extends Model
         'auto_approve',
     ];
 
-    protected function casts(): array
+    public function casts(): array
     {
         return [
             'start_date' => 'datetime',
@@ -40,7 +42,16 @@ class Batch extends Model
             'current_students' => 'integer',
             'is_public' => 'boolean',
             'auto_approve' => 'boolean',
+            'type' => 'string',
         ];
+    }
+
+    /**
+     * Get the instructor who owns this batch (for classroom type).
+     */
+    public function instructor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'instructor_id');
     }
 
     /**
@@ -110,6 +121,22 @@ class Batch extends Model
     public function scopePublic($query)
     {
         return $query->where('is_public', true);
+    }
+
+    /**
+     * Scope for classroom type batches (Google Classroom style).
+     */
+    public function scopeClassroom($query)
+    {
+        return $query->where('type', 'classroom');
+    }
+
+    /**
+     * Scope for structured type batches (traditional bootcamp/cohort).
+     */
+    public function scopeStructured($query)
+    {
+        return $query->where('type', 'structured');
     }
 
     /**

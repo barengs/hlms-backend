@@ -204,6 +204,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'show']);
         Route::post('/join', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'join']);
 
+        // Course management
+        Route::post('/{id}/courses', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'addCourse']);
+        Route::delete('/{id}/courses/{courseId}', [App\Http\Controllers\Api\V1\Classroom\ClassController::class, 'removeCourse']);
+
         // Stream
         Route::get('/{id}/stream', [App\Http\Controllers\Api\V1\Classroom\ClassStreamController::class, 'index']);
         Route::post('/{id}/stream', [App\Http\Controllers\Api\V1\Classroom\ClassStreamController::class, 'store']);
