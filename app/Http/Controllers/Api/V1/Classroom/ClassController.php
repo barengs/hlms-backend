@@ -204,6 +204,14 @@ class ClassController extends Controller
      * @responseField instructor.id integer Instructor ID.
      * @responseField instructor.name string Instructor Name.
      * @responseField courses object[] List of courses attached to this class.
+     * @responseField courses[].topics object[] List of topics (sections) in the course.
+     * @responseField courses[].topics[].id integer Topic ID.
+     * @responseField courses[].topics[].title string Topic Title.
+     * @responseField courses[].topics[].materials_count integer Count of materials.
+     * @responseField courses[].topics[].materials object[] List of materials (lessons) in the topic.
+     * @responseField courses[].topics[].materials[].id integer Material ID.
+     * @responseField courses[].topics[].materials[].title string Material Title.
+     * @responseField courses[].topics[].materials[].type string Material Type.
      * @responseField students object[] List of enrolled students (Instructor view).
      * @responseField students[].id integer Student ID.
      * @responseField students[].name string Student Name.
@@ -216,8 +224,8 @@ class ClassController extends Controller
      * @responseField assessment_stats.ungraded_submissions_count integer submissions waiting for grading.
      * @responseField assessment_stats.class_average_score number Average score of the class.
      * @responseField assessment_stats.achieving_students_count integer Students with score >= 80.
+     * @responseField assessment_stats.achieving_students_count integer Students with score >= 80.
      * @responseField assessment_stats.needs_attention_count integer Students with score < 50.
-     * @response object
      */
     public function show($id)
     {

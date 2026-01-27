@@ -36,7 +36,28 @@ class ClassroomResource extends JsonResource
                         'slug' => $course->slug,
                         'thumbnail' => $course->thumbnail,
                         'sections_count' => $course->sections_count ?? $course->sections()->count(),
-                        // Add pivot data if available (e.g. order) though less critical for classroom
+                        // Map Sections as Topics
+                        'topics' => $course->whenLoaded('sections', function() use ($course) {
+                            return $course->sections->map(function($section) {
+                                return [
+                                    'id' => $section->id,
+                                    'title' => $section->title,
+                                    'materials_count' => $section->lessons->count(),
+                                    // Map Lessons as Materials
+                                    'materials' => $section->whenLoaded('lessons', function() use ($section) {
+                                        return $section->lessons->map(function($lesson) {
+                                            return [
+                                                'id' => $lesson->id,
+                                                'title' => $lesson->title,
+                                                'type' => $lesson->type, // video, document, etc.
+                                                'content_url' => $lesson->content_url, // if applicable
+                                                'duration' => $lesson->duration,
+                                            ];
+                                        });
+                                    }),
+                                ];
+                            });
+                        }),
                         'pivot' => $course->pivot ?? null,
                     ];
                 });
