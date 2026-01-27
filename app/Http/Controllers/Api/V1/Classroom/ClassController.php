@@ -196,19 +196,116 @@ class ClassController extends Controller
      * @group Hybrid Learning
      * @subgroup Class Management
      * @urlParam id integer required The ID of the class (batch).
+     * @responseField id integer The ID of the batch.
+     * @responseField name string The name of the class.
+     * @responseField type string The type of batch (classroom).
+     * @responseField class_code string The unique code for students to join.
+     * @responseField instructor object The instructor details.
+     * @responseField instructor.id integer Instructor ID.
+     * @responseField instructor.name string Instructor Name.
+     * @responseField courses object[] List of courses attached to this class.
+     * @responseField students object[] List of enrolled students (Instructor view).
+     * @responseField students[].id integer Student ID.
+     * @responseField students[].name string Student Name.
+     * @responseField students[].avatar string Student Avatar URL.
+     * @responseField students[].progress integer Progress percentage (0-100).
+     * @responseField students[].grade_score number Overall grade score (0-100).
+     * @responseField students[].grade_letter string Letter grade (A, B, C...).
+     * @responseField assessment_stats object Assessment statistics (Instructor view).
+     * @responseField assessment_stats.assignments_count integer Total assignments.
+     * @responseField assessment_stats.ungraded_submissions_count integer submissions waiting for grading.
+     * @responseField assessment_stats.class_average_score number Average score of the class.
+     * @responseField assessment_stats.achieving_students_count integer Students with score >= 80.
+     * @responseField assessment_stats.needs_attention_count integer Students with score < 50.
      * @response object
      */
     public function show($id)
     {
         $batch = Batch::classroom()
-            ->with(['courses.instructor', 'courses.sections.lessons', 'instructor', 'enrollments'])
+            // Student and Instructor views might differ, but for now we return all data
+        
+            ->with([
+                'courses.instructor', 
+                'courses.sections.lessons', 
+                'instructor', 
+                'enrollments.student', // Load student info
+                'enrollments' => function($q) {
+                    $q->with('student'); // Ensure user data is loaded
+                } 
+            ])
             ->findOrFail($id);
 
-        // TODO: distinct between student view and instructor view?
-        
-        return response()->json(['data' => new ClassroomResource($batch)]);
+        // Load aggregate grades for the batch
+        $batch->load(['grades' => function($q) {
+            $q->select('batch_id', 'user_id', 'overall_score', 'letter_grade');
+        }]);
+
+        return $this->successResponse(
+            new ClassroomResource($batch),
+            'Class details retrieved successfully'
+        );
     }
 
+    /**
+     * Update Class
+     * 
+     * Update class details (Settings tab).
+     * 
+     * @group Hybrid Learning
+     * @subgroup Class Management
+     * @bodyParam name string optional
+     * @bodyParam description string optional
+     * @bodyParam is_open_for_enrollment boolean optional
+     * @bodyParam auto_approve boolean optional
+     */
+    public function update(Request $request, $id)
+    {
+        $batch = Batch::classroom()->findOrFail($id);
+        
+        if ($request->user()->id !== $batch->instructor_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'nullable|string',
+            'subject' => 'nullable|string|max:255',
+            'section' => 'nullable|string|max:50',
+            'is_open_for_enrollment' => 'boolean',
+            'auto_approve' => 'boolean',
+            'status' => 'in:open,closed,archived',
+        ]);
+
+        $batch->update($validated);
+
+        return $this->successResponse(
+            new ClassroomResource($batch),
+            'Class updated successfully'
+        );
+    }
+
+    /**
+     * Archive/Delete Class
+     * 
+     * Archive or delete a class.
+     */
+    public function destroy(Request $request, $id)
+    {
+        $batch = Batch::classroom()->findOrFail($id);
+        
+        if ($request->user()->id !== $batch->instructor_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Check if soft delete or force delete? 
+        // For now, simple delete
+        $batch->delete();
+
+        return $this->successResponse(
+            null,
+            'Class deleted successfully'
+        );
+    }
     /**
      * Add Course to Class
      * 
