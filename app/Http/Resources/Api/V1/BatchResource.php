@@ -39,7 +39,7 @@ class BatchResource extends JsonResource
         // Calculate average grade
         $averageGrade = null;
         if ($this->relationLoaded('grades') && $this->grades->count() > 0) {
-            $averageGrade = round($this->grades->avg('grade'), 1);
+            $averageGrade = round($this->grades->avg('overall_score'), 1);
         }
 
         // Get recent students (max 5) with avatars
@@ -65,7 +65,7 @@ class BatchResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'thumbnail' => $firstCourse ? $firstCourse->thumbnail : null,
+            'thumbnail' => $this->thumbnail ?? ($firstCourse ? $firstCourse->thumbnail : null),
             'course_title' => $firstCourse ? $firstCourse->title : null,
             'status' => $this->status,
             'type' => $this->type,

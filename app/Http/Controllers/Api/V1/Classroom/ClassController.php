@@ -169,7 +169,7 @@ class ClassController extends Controller
 
         return response()->json([
             'message' => 'Class created successfully',
-            'data' => $batch,
+            'data' => new \App\Http\Resources\Api\V1\BatchResource($batch),
         ], 201);
     }
 
@@ -191,7 +191,7 @@ class ClassController extends Controller
 
         // TODO: distinct between student view and instructor view?
         
-        return response()->json(['data' => $batch]);
+        return response()->json(['data' => new \App\Http\Resources\Api\V1\BatchResource($batch)]);
     }
 
     /**
@@ -222,8 +222,8 @@ class ClassController extends Controller
         }
 
         // Verify instructor owns the course
-        $course = Course::where('id', $request->course_id)
-            ->where('instructor_id', $user->id)
+        $course = Course::where('id', '=', $request->course_id)
+            ->where('instructor_id', '=', $user->id)
             ->firstOrFail();
 
         // Check if course already attached
@@ -322,11 +322,11 @@ class ClassController extends Controller
             'progress_percentage' => 0,
         ]);
 
-        $batch->increment('current_students');
+        $batch->increment('current_students', 1);
 
         return response()->json([
             'message' => 'Successfully joined the class',
-            'data' => $batch->load('courses', 'instructor'),
+            'data' => new \App\Http\Resources\Api\V1\BatchResource($batch->load('courses', 'instructor')),
         ]);
     }
 }
