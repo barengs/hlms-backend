@@ -86,8 +86,7 @@ class ClassController extends Controller
                 ->when($request->status, function ($query, $status) {
                     $query->where('status', $status);
                 })
-                ->latest()
-                ->paginate($request->per_page ?? 20);
+                ->latest();
 
             // Get the response data using ClassroomResource
             $responseData = ClassroomResource::collection($classes)->response()->getData(true);

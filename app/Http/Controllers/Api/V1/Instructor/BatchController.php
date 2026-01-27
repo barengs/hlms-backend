@@ -107,8 +107,7 @@ class BatchController extends Controller
                 ->when($request->status, function ($query, $status) {
                     $query->where('status', $status);
                 })
-                ->orderBy('created_at', 'desc')
-                ->paginate($request->per_page ?? 10);
+                ->orderBy('created_at', 'desc');
 
             // Get the response data
             $responseData = StructuredBatchResource::collection($batches)->response()->getData(true);
