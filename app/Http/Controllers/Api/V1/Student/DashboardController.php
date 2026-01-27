@@ -65,4 +65,93 @@ class DashboardController extends Controller
             return $this->errorResponse('Failed to retrieve dashboard data.', 500);
         }
     }
+
+    /**
+     * My Learning - Unified View
+     * 
+     * Get all learning paths: self-paced courses, enrolled batches, and joined classes.
+     *
+     * @group Dashboard Siswa
+     */
+    public function myLearning(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            // 1. Self-paced courses (enrollments without batch)
+            $selfPacedCourses = Enrollment::where('user_id', $user->id)
+                ->whereNull('batch_id')
+                ->with('course:id,title,slug,thumbnail,instructor_id')
+                ->active()
+                ->latest()
+                ->get()
+                ->map(function ($enrollment) {
+                    return [
+                        'type' => 'course',
+                        'id' => $enrollment->course_id,
+                        'title' => $enrollment->course->title,
+                        'slug' => $enrollment->course->slug,
+                        'thumbnail' => $enrollment->course->thumbnail,
+                        'progress' => $enrollment->progress_percentage,
+                        'enrolled_at' => $enrollment->enrolled_at,
+                    ];
+                });
+
+            // 2. Enrolled batches (structured learning)
+            $enrolledBatches = \App\Models\Batch::whereHas('enrollments', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })
+                ->where('type', 'structured')
+                ->with(['courses:id,title,thumbnail', 'instructor:id,name'])
+                ->latest()
+                ->get()
+                ->map(function ($batch) {
+                    return [
+                        'type' => 'batch',
+                        'id' => $batch->id,
+                        'title' => $batch->name,
+                        'thumbnail' => $batch->courses->first()?->thumbnail,
+                        'status' => $batch->status,
+                        'instructor' => $batch->instructor?->name,
+                        'start_date' => $batch->start_date,
+                        'end_date' => $batch->end_date,
+                    ];
+                });
+
+            // 3. Joined classes (classroom style)
+            $joinedClasses = \App\Models\Batch::whereHas('enrollments', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })
+                ->where('type', 'classroom')
+                ->with(['courses:id,title,thumbnail', 'instructor:id,name'])
+                ->latest()
+                ->get()
+                ->map(function ($batch) {
+                    return [
+                        'type' => 'class',
+                        'id' => $batch->id,
+                        'title' => $batch->name,
+                        'class_code' => $batch->class_code,
+                        'thumbnail' => $batch->courses->first()?->thumbnail,
+                        'instructor' => $batch->instructor?->name,
+                        'created_at' => $batch->created_at,
+                    ];
+                });
+
+            return $this->successResponse([
+                'courses' => $selfPacedCourses,
+                'batches' => $enrolledBatches,
+                'classes' => $joinedClasses,
+                'summary' => [
+                    'total_courses' => $selfPacedCourses->count(),
+                    'total_batches' => $enrolledBatches->count(),
+                    'total_classes' => $joinedClasses->count(),
+                ]
+            ], 'My learning data retrieved successfully.');
+
+        } catch (\Exception $e) {
+            Log::error('My Learning Error: ' . $e->getMessage());
+            return $this->errorResponse('Failed to retrieve learning data.', 500);
+        }
+    }
 }

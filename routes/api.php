@@ -79,22 +79,43 @@ Route::prefix('v1')->group(function () {
     | Admin Routes
     |--------------------------------------------------------------------------
     */
-    Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function () {
-        // Dashboard
+    // Admin Routes - Permission-based (Dynamic, no hardcoded roles)
+    Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
+        // Dashboard - any authenticated admin user
         Route::get('dashboard', [AdminDashboardController::class, 'index']);
 
-        // Categories CRUD (Write operations only - GET moved to public routes)
-        Route::post('categories', [CategoryController::class, 'store']);
-        Route::put('categories/{category}', [CategoryController::class, 'update']);
-        Route::patch('categories/{category}', [CategoryController::class, 'update']);
-        Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
-        Route::post('categories/reorder', [CategoryController::class, 'reorder']);
+        // Categories CRUD - permission-based
+        Route::post('categories', [CategoryController::class, 'store'])->middleware('permission:manage categories');
+        Route::put('categories/{category}', [CategoryController::class, 'update'])->middleware('permission:manage categories');
+        Route::patch('categories/{category}', [CategoryController::class, 'update'])->middleware('permission:manage categories');
+        Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->middleware('permission:manage categories');
+        Route::post('categories/reorder', [CategoryController::class, 'reorder'])->middleware('permission:manage categories');
 
-        // Learning Paths CRUD
-        Route::apiResource('learning-paths', \App\Http\Controllers\Api\V1\Admin\LearningPathController::class);
-        Route::post('learning-paths/{learningPath}/courses', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'addCourse']);
-        Route::delete('learning-paths/{learningPath}/courses/{courseId}', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'removeCourse']);
-        Route::post('learning-paths/{learningPath}/reorder', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'reorder']);
+        // Learning Paths CRUD - permission-based
+        Route::middleware('permission:manage learning paths')->group(function () {
+            Route::apiResource('learning-paths', \App\Http\Controllers\Api\V1\Admin\LearningPathController::class);
+            Route::post('learning-paths/{learningPath}/courses', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'addCourse']);
+            Route::delete('learning-paths/{learningPath}/courses/{courseId}', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'removeCourse']);
+            Route::post('learning-paths/{learningPath}/reorder', [\App\Http\Controllers\Api\V1\Admin\LearningPathController::class, 'reorder']);
+        });
+
+        // Batch Management - permission checks in controller (already dynamic)
+        Route::get('batches', [\App\Http\Controllers\Api\V1\Admin\BatchController::class, 'index']);
+        Route::post('batches', [\App\Http\Controllers\Api\V1\Admin\BatchController::class, 'store']);
+        Route::post('batches/{batch}/instructors', [\App\Http\Controllers\Api\V1\Admin\BatchController::class, 'assignInstructor']);
+        Route::delete('batches/{batch}/instructors/{instructor}', [\App\Http\Controllers\Api\V1\Admin\BatchController::class, 'removeInstructor']);
+        Route::get('batches/{batch}/instructors', [\App\Http\Controllers\Api\V1\Admin\BatchController::class, 'getInstructors']);
+
+        // Role & Permission Management (Dynamic RBAC)
+        Route::get('roles', [\App\Http\Controllers\Api\V1\Admin\RoleManagementController::class, 'index']);
+        Route::post('roles', [\App\Http\Controllers\Api\V1\Admin\RoleManagementController::class, 'store']);
+        Route::put('roles/{role}', [\App\Http\Controllers\Api\V1\Admin\RoleManagementController::class, 'update']);
+        Route::delete('roles/{role}', [\App\Http\Controllers\Api\V1\Admin\RoleManagementController::class, 'destroy']);
+        Route::get('permissions', [\App\Http\Controllers\Api\V1\Admin\RoleManagementController::class, 'permissions']);
+        
+        // User Role Assignment
+        Route::post('users/{user}/roles', [\App\Http\Controllers\Api\V1\Admin\RoleManagementController::class, 'assignRoleToUser']);
+        Route::delete('users/{user}/roles/{role}', [\App\Http\Controllers\Api\V1\Admin\RoleManagementController::class, 'removeRoleFromUser']);
     });
 
     /*
@@ -148,11 +169,14 @@ Route::prefix('v1')->group(function () {
     Route::prefix('student')->middleware(['auth:sanctum'])->group(function () {
         // Dashboard
         Route::get('dashboard', [StudentDashboardController::class, 'index']);
+        Route::get('my-learning', [StudentDashboardController::class, 'myLearning']);
         
         // AI Recommendations
         Route::get('recommendations', [RecommendationController::class, 'recommend']);
 
-        // Batches
+        // Batches (Independent Enrollment)
+        Route::get('batches/available', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'availableBatches']);
+        Route::get('batches', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'myBatches']);
         Route::get('courses/{course}/batches', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'index']);
         Route::get('batches/{batch}', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'show']);
         Route::post('batches/{batch}/enroll', [App\Http\Controllers\Api\V1\Student\BatchController::class, 'enroll']);

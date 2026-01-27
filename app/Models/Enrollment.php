@@ -45,6 +45,14 @@ class Enrollment extends Model
     }
 
     /**
+     * Get the student who enrolled (alias for user).
+     */
+    public function student(): BelongsTo
+    {
+        return $this->user();
+    }
+
+    /**
      * Get the course enrolled in.
      */
     public function course(): BelongsTo

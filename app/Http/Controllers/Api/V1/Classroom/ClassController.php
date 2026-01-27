@@ -28,24 +28,102 @@ class ClassController extends Controller
         $user = $request->user();
 
         if ($user->isInstructor()) {
-            // Get classroom batches owned by this instructor
-            $classes = Batch::classroom()
-                ->where('instructor_id', $user->id)
-                ->with(['courses', 'enrollments'])
+            // Instructor view - with statistics and enhanced data
+            $baseQuery = Batch::classroom()
+                ->where('instructor_id', $user->id);
+
+            // Calculate global statistics (before pagination)
+            $statistics = [
+                'total_batches' => (clone $baseQuery)->count(),
+                'active_batches' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+                'published_batches' => (clone $baseQuery)->where('status', 'open')->count(),
+                'archived_batches' => (clone $baseQuery)->where('status', 'completed')->count(),
+                'total_students' => (clone $baseQuery)->withCount('enrollments')->get()->sum('enrollments_count'),
+                'average_grade' => round(
+                    DB::table('grades')
+                        ->join('batches', 'grades.batch_id', '=', 'batches.id')
+                        ->where('batches.instructor_id', $user->id)
+                        ->where('batches.type', 'classroom')
+                        ->avg('grades.grade') ?? 0,
+                    1
+                ),
+            ];
+
+            // Filter counts for tabs
+            $filters = [
+                'all' => $statistics['total_batches'],
+                'active' => $statistics['active_batches'],
+                'archived' => $statistics['archived_batches'],
+            ];
+
+            // Get paginated classes with all required relationships
+            $classes = $baseQuery
+                ->with([
+                    'courses' => function ($query) {
+                        $query->select('courses.id', 'courses.title', 'courses.slug', 'courses.thumbnail');
+                    },
+                    'courses.sections' => function ($query) {
+                        $query->select('sections.id', 'sections.course_id');
+                    },
+                    'courses.sections.lessons' => function ($query) {
+                        $query->select('lessons.id', 'lessons.section_id');
+                    },
+                    'enrollments' => function ($query) {
+                        $query->latest()->limit(5);
+                    },
+                    'enrollments.student' => function ($query) {
+                        $query->select('users.id', 'users.name', 'users.avatar');
+                    },
+                    'grades' => function ($query) {
+                        $query->select('batch_id', 'grade');
+                    }
+                ])
+                ->when($request->status, function ($query, $status) {
+                    $query->where('status', $status);
+                })
                 ->latest()
-                ->paginate(20);
+                ->paginate($request->per_page ?? 20);
+
+            // Get the response data using BatchResource
+            $responseData = \App\Http\Resources\Api\V1\BatchResource::collection($classes)->response()->getData(true);
+
+            // Add statistics and filters to meta
+            $responseData['meta']['statistics'] = $statistics;
+            $responseData['meta']['filters'] = $filters;
+
+            return response()->json($responseData);
+
         } else {
-            // Get classroom batches where student is enrolled
+            // Student view - with enhanced data but no statistics
             $classes = Batch::classroom()
                 ->whereHas('enrollments', function ($query) use ($user) {
                     $query->where('user_id', $user->id);
                 })
-                ->with(['courses', 'instructor'])
+                ->with([
+                    'courses' => function ($query) {
+                        $query->select('courses.id', 'courses.title', 'courses.slug', 'courses.thumbnail');
+                    },
+                    'courses.sections' => function ($query) {
+                        $query->select('sections.id', 'sections.course_id');
+                    },
+                    'courses.sections.lessons' => function ($query) {
+                        $query->select('lessons.id', 'lessons.section_id');
+                    },
+                    'instructor' => function ($query) {
+                        $query->select('users.id', 'users.name', 'users.avatar');
+                    },
+                    'grades' => function ($query) use ($user) {
+                        $query->where('user_id', $user->id)->select('batch_id', 'grade');
+                    }
+                ])
                 ->latest()
-                ->paginate(20);
-        }
+                ->paginate($request->per_page ?? 20);
 
-        return response()->json($classes);
+            // Use BatchResource for consistent response format
+            return response()->json(
+                \App\Http\Resources\Api\V1\BatchResource::collection($classes)->response()->getData(true)
+            );
+        }
     }
 
     /**

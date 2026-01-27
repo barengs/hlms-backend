@@ -56,16 +56,48 @@ class RolePermissionSeeder extends Seeder
             'write reviews',
         ];
 
-        // Admin permissions
-        $adminPermissions = [
+        // Admin permissions - Granular
+        $batchManagementPermissions = [
+            'view all batches',
+            'create batches',
+            'edit batches',
+            'delete batches',
+            'assign instructors',
+            'remove instructors',
+        ];
+
+        $courseManagementPermissions = [
+            'approve courses',
+            'reject courses',
+            'manage all courses',
+            'feature courses',
+        ];
+
+        $categoryPermissions = [
+            'manage categories',
+        ];
+
+        $learningPathPermissions = [
+            'manage learning paths',
+        ];
+
+        $enrollmentPermissions = [
+            'view all enrollments',
+            'manage enrollments',
+        ];
+
+        $userManagementPermissions = [
             'manage users',
             'verify instructors',
             'manage roles',
-            'manage all courses',
-            'manage categories',
-            'feature courses',
+        ];
+
+        $financialPermissions = [
             'manage transactions',
             'process payouts',
+        ];
+
+        $systemPermissions = [
             'view platform analytics',
             'manage settings',
         ];
@@ -76,11 +108,20 @@ class RolePermissionSeeder extends Seeder
             $coursePermissions,
             $batchPermissions,
             $studentPermissions,
-            $adminPermissions
+            $batchManagementPermissions,
+            $courseManagementPermissions,
+            $categoryPermissions,
+            $learningPathPermissions,
+            $enrollmentPermissions,
+            $userManagementPermissions,
+            $financialPermissions,
+            $systemPermissions
         );
 
         foreach ($allPermissions as $permission) {
-            Permission::create(['name' => $permission, 'guard_name' => 'sanctum']);
+            Permission::firstOrCreate(
+                ['name' => $permission, 'guard_name' => 'sanctum']
+            );
         }
 
         /*
@@ -95,23 +136,54 @@ class RolePermissionSeeder extends Seeder
             ->get();
 
         // Student role
-        $studentRole = Role::create(['name' => 'student', 'guard_name' => 'sanctum']);
-        $studentRole->givePermissionTo($getPermissions([
+        $studentRole = Role::firstOrCreate(['name' => 'student', 'guard_name' => 'sanctum']);
+        $studentRole->syncPermissions($getPermissions([
             ...$userPermissions,
             ...$studentPermissions,
         ]));
 
         // Instructor role
-        $instructorRole = Role::create(['name' => 'instructor', 'guard_name' => 'sanctum']);
-        $instructorRole->givePermissionTo($getPermissions([
+        $instructorRole = Role::firstOrCreate(['name' => 'instructor', 'guard_name' => 'sanctum']);
+        $instructorRole->syncPermissions($getPermissions([
             ...$userPermissions,
             ...$studentPermissions,
             ...$coursePermissions,
             ...$batchPermissions,
         ]));
 
-        // Admin role (has all permissions)
-        $adminRole = Role::create(['name' => 'admin', 'guard_name' => 'sanctum']);
-        $adminRole->givePermissionTo(Permission::where('guard_name', 'sanctum')->get());
+        // Curriculum Manager role (Tim Kurikulum)
+        $curriculumRole = Role::firstOrCreate(['name' => 'curriculum-manager', 'guard_name' => 'sanctum']);
+        $curriculumRole->syncPermissions($getPermissions([
+            ...$userPermissions,
+            ...$batchManagementPermissions,
+            ...$learningPathPermissions,
+            'view all enrollments',
+        ]));
+
+        // Content Manager role
+        $contentRole = Role::firstOrCreate(['name' => 'content-manager', 'guard_name' => 'sanctum']);
+        $contentRole->syncPermissions($getPermissions([
+            ...$userPermissions,
+            ...$courseManagementPermissions,
+            ...$categoryPermissions,
+            ...$learningPathPermissions,
+        ]));
+
+        // Operations Manager role
+        $operationsRole = Role::firstOrCreate(['name' => 'operations-manager', 'guard_name' => 'sanctum']);
+        $operationsRole->syncPermissions($getPermissions([
+            ...$userPermissions,
+            'view all batches',
+            ...$enrollmentPermissions,
+            'view platform analytics',
+        ]));
+
+        // Super Admin role (has all permissions)
+        $superAdminRole = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'sanctum']);
+        $superAdminRole->syncPermissions(Permission::where('guard_name', 'sanctum')->get());
+
+        // Keep legacy admin role for backward compatibility
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'sanctum']);
+        $adminRole->syncPermissions(Permission::where('guard_name', 'sanctum')->get());
     }
 }

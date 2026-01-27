@@ -34,10 +34,68 @@ class BatchController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $batches = Batch::whereHas('courses', function ($query) use ($request) {
-                    $query->where('instructor_id', $request->user()->id);
+            $instructorId = $request->user()->id;
+
+            // Base query for instructor's batches
+            // Include batches where:
+            // 1. Instructor owns the courses in the batch, OR
+            // 2. Instructor is assigned to the batch (via batch_instructor pivot)
+            $baseQuery = Batch::where(function ($query) use ($instructorId) {
+                $query->whereHas('courses', function ($q) use ($instructorId) {
+                    $q->where('instructor_id', $instructorId);
                 })
-                ->with(['courses:id,title,slug', 'assignments', 'enrollments'])
+                ->orWhereHas('instructors', function ($q) use ($instructorId) {
+                    $q->where('instructor_id', $instructorId);
+                });
+            });
+
+            // Calculate global statistics (before pagination)
+            $statistics = [
+                'total_batches' => (clone $baseQuery)->count(),
+                'active_batches' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+                'published_batches' => (clone $baseQuery)->where('status', 'open')->count(),
+                'archived_batches' => (clone $baseQuery)->where('status', 'completed')->count(),
+                'total_students' => (clone $baseQuery)->withCount('enrollments')->get()->sum('enrollments_count'),
+                'average_grade' => round(
+                    DB::table('grades')
+                        ->join('batches', 'grades.batch_id', '=', 'batches.id')
+                        ->join('batch_course', 'batches.id', '=', 'batch_course.batch_id')
+                        ->join('courses', 'batch_course.course_id', '=', 'courses.id')
+                        ->where('courses.instructor_id', $instructorId)
+                        ->avg('grades.grade') ?? 0,
+                    1
+                ),
+            ];
+
+            // Filter counts for tabs
+            $filters = [
+                'all' => $statistics['total_batches'],
+                'active' => $statistics['active_batches'],
+                'archived' => $statistics['archived_batches'],
+            ];
+
+            // Get paginated batches with all required relationships
+            $batches = $baseQuery
+                ->with([
+                    'courses' => function ($query) {
+                        $query->select('courses.id', 'courses.title', 'courses.slug', 'courses.thumbnail');
+                    },
+                    'courses.sections' => function ($query) {
+                        $query->select('sections.id', 'sections.course_id');
+                    },
+                    'courses.sections.lessons' => function ($query) {
+                        $query->select('lessons.id', 'lessons.section_id');
+                    },
+                    'enrollments' => function ($query) {
+                        $query->latest()->limit(5);
+                    },
+                    'enrollments.student' => function ($query) {
+                        $query->select('users.id', 'users.name', 'users.avatar');
+                    },
+                    'grades' => function ($query) {
+                        $query->select('batch_id', 'grade');
+                    }
+                ])
                 ->when($request->course_id, function ($query, $courseId) {
                     $query->whereHas('courses', function ($q) use ($courseId) {
                         $q->where('courses.id', $courseId);
@@ -49,8 +107,15 @@ class BatchController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->paginate($request->per_page ?? 10);
 
+            // Get the response data
+            $responseData = BatchResource::collection($batches)->response()->getData(true);
+
+            // Add statistics and filters to meta
+            $responseData['meta']['statistics'] = $statistics;
+            $responseData['meta']['filters'] = $filters;
+
             return $this->successResponse(
-                BatchResource::collection($batches)->response()->getData(true),
+                $responseData,
                 'Batches retrieved successfully.'
             );
 

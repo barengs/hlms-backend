@@ -55,6 +55,17 @@ class Batch extends Model
     }
 
     /**
+     * Get all instructors assigned to this batch (many-to-many).
+     * For structured batches where admin assigns multiple instructors.
+     */
+    public function instructors(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'batch_instructor', 'batch_id', 'instructor_id')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    /**
      * Get the courses in this batch (many-to-many).
      */
     public function courses(): BelongsToMany

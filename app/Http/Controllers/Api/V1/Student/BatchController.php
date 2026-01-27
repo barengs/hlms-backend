@@ -13,6 +13,69 @@ use Illuminate\Support\Facades\DB;
 class BatchController extends Controller
 {
     /**
+     * Browse Available Public Batches
+     * 
+     * Student can browse all public batches that are open for enrollment.
+     *
+     * @group Student - Batch Enrollment
+     */
+    public function availableBatches(Request $request): JsonResponse
+    {
+        $batches = Batch::structured()
+            ->public()
+            ->openForEnrollment()
+            ->with([
+                'courses:id,title,slug,thumbnail',
+                'instructor:id,name,avatar',
+                'instructors:id,name,avatar'
+            ])
+            ->withCount('enrollments')
+            ->when($request->category_id, function ($query, $categoryId) {
+                $query->whereHas('courses.category', function ($q) use ($categoryId) {
+                    $q->where('id', $categoryId);
+                });
+            })
+            ->orderBy('start_date', 'asc')
+            ->paginate($request->per_page ?? 12);
+
+        return response()->json($batches);
+    }
+
+    /**
+     * My Enrolled Batches
+     * 
+     * Get list of batches where student is enrolled.
+     *
+     * @group Student - Batch Enrollment
+     */
+    public function myBatches(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $batches = Batch::whereHas('enrollments', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->with([
+                'courses:id,title,slug,thumbnail',
+                'instructor:id,name,avatar',
+                'instructors:id,name,avatar',
+                'enrollments' => function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                }
+            ])
+            ->when($request->type, function ($query, $type) {
+                $query->where('type', $type);
+            })
+            ->when($request->status, function ($query, $status) {
+                $query->where('status', $status);
+            })
+            ->latest()
+            ->paginate($request->per_page ?? 12);
+
+        return response()->json($batches);
+    }
+
+    /**
      * Daftar Batch Kursus
      * 
      * Melihat jadwal batch yang tersedia untuk kursus tertentu.
