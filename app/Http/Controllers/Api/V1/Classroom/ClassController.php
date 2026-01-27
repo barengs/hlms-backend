@@ -6,12 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\User; // Added this line
+use App\Http\Resources\Api\V1\ClassroomResource; // Added this line
+use App\Traits\ApiResponse; // Added Trait import
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ClassController extends Controller
 {
+    use ApiResponse; // Use the trait
+
     /**
      * List Classes
      * 
@@ -84,14 +89,17 @@ class ClassController extends Controller
                 ->latest()
                 ->paginate($request->per_page ?? 20);
 
-            // Get the response data using BatchResource
-            $responseData = \App\Http\Resources\Api\V1\BatchResource::collection($classes)->response()->getData(true);
+            // Get the response data using ClassroomResource
+            $responseData = ClassroomResource::collection($classes)->response()->getData(true);
 
             // Add statistics and filters to meta
             $responseData['meta']['statistics'] = $statistics;
             $responseData['meta']['filters'] = $filters;
 
-            return response()->json($responseData);
+            return $this->successResponse(
+                $responseData,
+                'Classes retrieved successfully'
+            );
 
         } else {
             // Student view - with enhanced data but no statistics
@@ -119,9 +127,10 @@ class ClassController extends Controller
                 ->latest()
                 ->paginate($request->per_page ?? 20);
 
-            // Use BatchResource for consistent response format
-            return response()->json(
-                \App\Http\Resources\Api\V1\BatchResource::collection($classes)->response()->getData(true)
+            // Use ClassroomResource for consistent response format
+            return $this->successResponse(
+                ClassroomResource::collection($classes)->response()->getData(true),
+                'Classes retrieved successfully'
             );
         }
     }
@@ -167,10 +176,11 @@ class ClassController extends Controller
             'auto_approve' => true,
         ]);
 
-        return response()->json([
-            'message' => 'Class created successfully',
-            'data' => new \App\Http\Resources\Api\V1\BatchResource($batch),
-        ], 201);
+        return $this->successResponse(
+            new ClassroomResource($batch),
+            'Class created successfully',
+            201
+        );
     }
 
     /**
@@ -191,7 +201,7 @@ class ClassController extends Controller
 
         // TODO: distinct between student view and instructor view?
         
-        return response()->json(['data' => new \App\Http\Resources\Api\V1\BatchResource($batch)]);
+        return response()->json(['data' => new ClassroomResource($batch)]);
     }
 
     /**
@@ -237,10 +247,10 @@ class ClassController extends Controller
             'is_required' => false,  // Optional in classroom
         ]);
 
-        return response()->json([
-            'message' => 'Course added to class successfully',
-            'data' => $batch->load('courses'),
-        ]);
+        return $this->successResponse(
+            new ClassroomResource($batch->load(['courses', 'instructor'])), // Reload to get updated courses
+            'Course added to class successfully'
+        );
     }
 
     /**
@@ -269,9 +279,10 @@ class ClassController extends Controller
         // Detach course
         $batch->courses()->detach($courseId);
 
-        return response()->json([
-            'message' => 'Course removed from class successfully',
-        ]);
+        return $this->successResponse(
+            new ClassroomResource($batch->load(['courses', 'instructor'])),
+            'Course removed from class successfully'
+        );
     }
 
     /**

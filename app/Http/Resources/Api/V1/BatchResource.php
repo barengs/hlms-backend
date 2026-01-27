@@ -67,6 +67,7 @@ class BatchResource extends JsonResource
             'name' => $this->name,
             'thumbnail' => $this->thumbnail ?? ($firstCourse ? $firstCourse->thumbnail : null),
             'course_title' => $firstCourse ? $firstCourse->title : null,
+            'class_code' => $this->class_code,
             'status' => $this->status,
             'type' => $this->type,
             'start_date' => $this->start_date,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Student;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\V1\StructuredBatchResource;
 use App\Models\Batch;
 use App\Models\Course;
 use App\Models\Enrollment;
@@ -21,7 +22,7 @@ class BatchController extends Controller
      */
     public function availableBatches(Request $request): JsonResponse
     {
-        $batches = Batch::structured()
+        $query = Batch::structured()
             ->public()
             ->openForEnrollment()
             ->with([
@@ -35,10 +36,13 @@ class BatchController extends Controller
                     $q->where('id', $categoryId);
                 });
             })
-            ->orderBy('start_date', 'asc')
-            ->paginate($request->per_page ?? 12);
+            ->orderBy('start_date', 'asc');
+            $batches = $query->paginate($request->per_page ?? 10);
 
-        return response()->json($batches);
+            return $this->successResponse(
+                StructuredBatchResource::collection($batches)->response()->getData(true),
+                'Batches retrieved successfully.'
+            );
     }
 
     /**
@@ -207,9 +211,9 @@ class BatchController extends Controller
             $lockedBatch->increment('current_students');
         });
 
-        return response()->json([
-            'message' => 'Successfully enrolled in batch.',
-            'data' => $batch->load('courses')
-        ]);
+        return $this->successResponse(
+            new StructuredBatchResource($batch->load(['courses', 'instructor'])),
+            'Batch retrieved successfully.'
+        );
     }
 }

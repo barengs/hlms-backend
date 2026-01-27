@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 use App\Http\Resources\Api\V1\BatchResource;
+use App\Http\Resources\Api\V1\StructuredBatchResource;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -110,7 +111,7 @@ class BatchController extends Controller
                 ->paginate($request->per_page ?? 10);
 
             // Get the response data
-            $responseData = BatchResource::collection($batches)->response()->getData(true);
+            $responseData = StructuredBatchResource::collection($batches)->response()->getData(true);
 
             // Add statistics and filters to meta
             $responseData['meta']['statistics'] = $statistics;
@@ -203,7 +204,7 @@ class BatchController extends Controller
                 DB::commit();
 
                 return $this->successResponse(
-                    new BatchResource($batch->load('courses')), 
+                    new StructuredBatchResource($batch->load('courses')), 
                     'Batch created successfully.', 
                     201
                 );
