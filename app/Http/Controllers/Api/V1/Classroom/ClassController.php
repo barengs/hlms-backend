@@ -86,14 +86,20 @@ class ClassController extends Controller
                 ->when($request->status, function ($query, $status) {
                     $query->where('status', $status);
                 })
-                ->latest();
+                ->latest()
+                ->get();
 
             // Get the response data using ClassroomResource
-            $responseData = ClassroomResource::collection($classes)->response()->getData(true);
-
-            // Add statistics and filters to meta
-            $responseData['meta']['statistics'] = $statistics;
-            $responseData['meta']['filters'] = $filters;
+            $classesData = ClassroomResource::collection($classes);
+            
+            // Build final response with meta
+            $responseData = [
+                'items' => $classesData,
+                'meta' => [
+                    'statistics' => $statistics,
+                    'filters' => $filters
+                ]
+            ];
 
             return $this->successResponse(
                 $responseData,
@@ -124,11 +130,11 @@ class ClassController extends Controller
                     }
                 ])
                 ->latest()
-                ->paginate($request->per_page ?? 20);
+                ->get();
 
             // Use ClassroomResource for consistent response format
             return $this->successResponse(
-                ClassroomResource::collection($classes)->response()->getData(true),
+                ClassroomResource::collection($classes),
                 'Classes retrieved successfully'
             );
         }
@@ -334,9 +340,9 @@ class ClassController extends Controller
 
         $batch->increment('current_students', 1);
 
-        return response()->json([
-            'message' => 'Successfully joined the class',
-            'data' => new \App\Http\Resources\Api\V1\BatchResource($batch->load('courses', 'instructor')),
-        ]);
+        return $this->successResponse(
+            new ClassroomResource($batch->load(['courses', 'instructor'])),
+            'Successfully joined the class'
+        );
     }
 }

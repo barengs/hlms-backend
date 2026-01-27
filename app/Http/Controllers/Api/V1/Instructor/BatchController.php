@@ -107,14 +107,19 @@ class BatchController extends Controller
                 ->when($request->status, function ($query, $status) {
                     $query->where('status', $status);
                 })
-                ->orderBy('created_at', 'desc');
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             // Get the response data
-            $responseData = StructuredBatchResource::collection($batches)->response()->getData(true);
-
-            // Add statistics and filters to meta
-            $responseData['meta']['statistics'] = $statistics;
-            $responseData['meta']['filters'] = $filters;
+            $batchesData = StructuredBatchResource::collection($batches);
+            
+            $responseData = [
+                'items' => $batchesData,
+                'meta' => [
+                    'statistics' => $statistics,
+                    'filters' => $filters
+                ]
+            ];
 
             return $this->successResponse(
                 $responseData,
