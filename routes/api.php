@@ -85,6 +85,7 @@ Route::prefix('v1')->group(function () {
         Route::get('dashboard', [AdminDashboardController::class, 'index']);
 
         // Categories CRUD - permission-based
+        Route::get('categories', [CategoryController::class, 'index'])->middleware('permission:manage categories');
         Route::post('categories', [CategoryController::class, 'store'])->middleware('permission:manage categories');
         Route::put('categories/{category}', [CategoryController::class, 'update'])->middleware('permission:manage categories');
         Route::patch('categories/{category}', [CategoryController::class, 'update'])->middleware('permission:manage categories');
