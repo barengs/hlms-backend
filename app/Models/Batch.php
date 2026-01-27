@@ -29,6 +29,7 @@ class Batch extends Model
         'status',
         'is_public',
         'auto_approve',
+        'thumbnail',
     ];
 
     public function casts(): array

@@ -14,6 +14,8 @@ use App\Http\Resources\Api\V1\AssignmentResource;
 use App\Http\Resources\Api\V1\SubmissionResource;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Intervention\Image\Laravel\Facades\Image;
 
 class AssignmentController extends Controller
 {
@@ -77,7 +79,7 @@ class AssignmentController extends Controller
         try {
             $user = $request->user();
 
-            $assignment = Assignment::where('is_published', true)
+            $assignment = Assignment::where('is_published', '=', true)
                 ->whereHas('batch.enrollments', function ($q) use ($user) {
                     $q->where('user_id', $user->id)->active();
                 })
@@ -116,7 +118,7 @@ class AssignmentController extends Controller
         try {
             $user = $request->user();
             
-            $assignment = Assignment::where('is_published', true)
+            $assignment = Assignment::where('is_published', '=', true)
                 ->whereHas('batch.enrollments', function ($q) use ($user) {
                     $q->where('user_id', $user->id)->active();
                 })
@@ -141,15 +143,35 @@ class AssignmentController extends Controller
                 return $this->errorResponse('Multiple submissions are not allowed.', 422);
             }
 
-            // 3. File Processing
             $files = $submission ? ($submission->files ?? []) : [];
             if ($request->hasFile('file')) {
-                $path = $request->file('file')->store('submissions', 'public');
+                $file = $request->file('file');
+                $mimeType = $file->getMimeType();
+                $fileName = $file->getClientOriginalName();
+                $fileSize = $file->getSize();
+                $path = '';
+
+                if (str_starts_with($mimeType, 'image/')) {
+                    $filenameUuid = Str::uuid() . '.webp';
+                    $path = 'submissions/' . $filenameUuid;
+
+                    $image = Image::read($file);
+                    $image->scale(width: 800);
+                    $encoded = $image->toWebp(quality: 80);
+                    Storage::disk('public')->put($path, (string) $encoded);
+
+                    $fileName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.webp';
+                    $mimeType = 'image/webp';
+                    $fileSize = strlen((string) $encoded);
+                } else {
+                     $path = $file->store('submissions', 'public');
+                }
+
                 $files[] = [
                     'path' => $path,
-                    'name' => $request->file('file')->getClientOriginalName(),
-                    'size' => $request->file('file')->getSize(),
-                    'mime' => $request->file('file')->getMimeType(),
+                    'name' => $fileName,
+                    'size' => $fileSize,
+                    'mime' => $mimeType,
                 ];
             }
 

@@ -13,6 +13,8 @@ use App\Http\Resources\Api\V1\BatchResource;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Laravel\Facades\Image;
 
 class BatchController extends Controller
 {
@@ -159,6 +161,7 @@ class BatchController extends Controller
                 'status' => ['required', 'in:draft,open,in_progress,completed,cancelled'],
                 'is_public' => ['boolean'],
                 'auto_approve' => ['boolean'],
+                'thumbnail' => ['nullable', 'image', 'max:2048'],
             ]);
 
             // Verify ownership of all courses
@@ -179,6 +182,11 @@ class BatchController extends Controller
                 $batchData['slug'] = Str::slug($validated['name']) . '-' . time();
                 $batchData['current_students'] = 0;
                 $batchData['type'] = 'structured'; // Mark as structured batch
+
+                // Handle Thumbnail Upload
+                if ($request->hasFile('thumbnail')) {
+                    $batchData['thumbnail'] = $this->handleThumbnailUpload($request->file('thumbnail'));
+                }
 
                 $batch = Batch::create($batchData);
 
@@ -281,10 +289,20 @@ class BatchController extends Controller
                 'status' => ['sometimes', 'in:draft,open,in_progress,completed,cancelled'],
                 'is_public' => ['boolean'],
                 'auto_approve' => ['boolean'],
+                'thumbnail' => ['nullable', 'image', 'max:2048'],
             ]);
 
             // Update batch basic info
             $batchData = collect($validated)->except('courses')->toArray();
+            
+            // Handle Thumbnail Upload
+            if ($request->hasFile('thumbnail')) {
+                // Delete old thumbnail
+                if ($batch->thumbnail) {
+                    Storage::disk('public')->delete($batch->thumbnail);
+                }
+                $batchData['thumbnail'] = $this->handleThumbnailUpload($request->file('thumbnail'));
+            }
             
             // Use transaction to ensure atomicity
             DB::beginTransaction();
@@ -373,6 +391,77 @@ class BatchController extends Controller
             Log::error('Batch Deletion Error: ' . $e->getMessage());
             return $this->errorResponse('Failed to delete batch.', 500);
         }
+    }
+
+    /**
+     * Upload Thumbnail
+     * 
+     * Upload and update the batch thumbnail image.
+     * 
+     * @group Kelas Terstruktur Instruktur
+     * @urlParam batch string required The ID of the batch.
+     * @bodyParam thumbnail file required The image file (max 2MB).
+     * @responseField success boolean Status keberhasilan request.
+     * @responseField data object Data thumbnail.
+     */
+    public function uploadThumbnail(Request $request, string $batchId): JsonResponse
+    {
+        try {
+            $batch = Batch::whereHas('courses', function ($query) use ($request) {
+                    $query->where('instructor_id', $request->user()->id);
+                })
+                ->findOrFail($batchId);
+
+            $request->validate([
+                'thumbnail' => ['required', 'image', 'max:2048'], // 2MB max
+            ]);
+
+            // Delete old thumbnail
+            if ($batch->thumbnail) {
+                Storage::disk('public')->delete($batch->thumbnail);
+            }
+
+            $path = $this->handleThumbnailUpload($request->file('thumbnail'));
+            $batch->update(['thumbnail' => $path]);
+
+            return $this->successResponse([
+                'thumbnail' => $path,
+                'url' => Storage::disk('public')->url($path),
+            ], 'Thumbnail uploaded successfully.');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Batch not found.', 404);
+        } catch (\Exception $e) {
+            Log::error('Batch Thumbnail Upload Error: ' . $e->getMessage());
+            return $this->errorResponse('Failed to upload thumbnail.', 500);
+        }
+    }
+
+    /**
+     * Handle thumbnail upload, resize, and conversion to WebP.
+     * 
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return string Path to saved file
+     */
+    private function handleThumbnailUpload($file): string
+    {
+        $filename = Str::uuid() . '.webp';
+        $path = 'batches/thumbnails/' . $filename;
+
+        // Convert to WebP using Intervention Image
+        $image = Image::read($file);
+        
+        // Resize individually to prevent too large images (e.g., 800px width, auto height)
+        // aspect ratio is maintained
+        $image->scale(width: 800);
+
+        // Encode to webp quality 80
+        $encoded = $image->toWebp(quality: 80);
+
+        // Save to storage
+        Storage::disk('public')->put($path, (string) $encoded);
+
+        return $path;
     }
 
     /**

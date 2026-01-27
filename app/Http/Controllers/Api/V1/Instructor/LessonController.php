@@ -10,6 +10,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use Intervention\Image\Laravel\Facades\Image;
 
 class LessonController extends Controller
 {
@@ -320,14 +322,34 @@ class LessonController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store('courses/attachments', 'public');
+        $path = '';
+        $mimeType = $file->getMimeType();
+        $fileName = $file->getClientOriginalName();
+        $fileSize = $file->getSize();
+
+        // Check if file is an image
+        if (str_starts_with($mimeType, 'image/')) {
+             $filenameUuid = Str::uuid() . '.webp';
+             $path = 'courses/attachments/' . $filenameUuid;
+
+             $image = Image::read($file);
+             $image->scale(width: 800); // Resize max width 800
+             $encoded = $image->toWebp(quality: 80);
+             Storage::disk('public')->put($path, (string) $encoded);
+             
+             $fileName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.webp';
+             $mimeType = 'image/webp';
+             $fileSize = strlen((string) $encoded);
+        } else {
+             $path = $file->store('courses/attachments', 'public');
+        }
 
         $attachment = $lesson->attachments()->create([
-            'title' => $request->title ?? $file->getClientOriginalName(),
+            'title' => $request->title ?? $fileName,
             'file_path' => $path,
-            'file_name' => $file->getClientOriginalName(),
-            'file_type' => $file->getMimeType(),
-            'file_size' => $file->getSize(),
+            'file_name' => $fileName,
+            'file_type' => $mimeType,
+            'file_size' => $fileSize,
             'sort_order' => $lesson->attachments()->count(),
         ]);
 

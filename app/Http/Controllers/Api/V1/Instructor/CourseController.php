@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Intervention\Image\Laravel\Facades\Image;
 
 class CourseController extends Controller
 {
@@ -255,7 +256,7 @@ class CourseController extends Controller
         $path = 'courses/thumbnails/' . $filename;
 
         // Convert to WebP using Intervention Image
-        $image = \Intervention\Image\Laravel\Facades\Image::read($file);
+        $image = Image::read($file);
         
         // Resize individually to prevent too large images (e.g., 800px width, auto height)
         // aspect ratio is maintained

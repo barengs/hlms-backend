@@ -135,6 +135,7 @@ Route::prefix('v1')->group(function () {
 
         // Batches CRUD
         Route::apiResource('batches', BatchController::class);
+        Route::post('batches/{batch}/thumbnail', [BatchController::class, 'uploadThumbnail']);
         Route::get('batches/{batch}/enrollment-stats', [BatchController::class, 'enrollmentStats']);
 
         // Sections CRUD (nested under courses)

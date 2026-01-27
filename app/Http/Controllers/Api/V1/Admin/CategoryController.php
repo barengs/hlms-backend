@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Intervention\Image\Laravel\Facades\Image;
+use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
 {
@@ -54,7 +56,7 @@ class CategoryController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:categories'],
             'description' => ['nullable', 'string'],
-            'icon' => ['nullable', 'string', 'max:255'],
+            'icon' => ['nullable', 'image', 'max:2048'],
             'parent_id' => ['nullable', 'exists:categories,id'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
@@ -70,6 +72,10 @@ class CategoryController extends Controller
         $counter = 1;
         while (Category::where('slug', $validated['slug'])->exists()) {
             $validated['slug'] = $originalSlug . '-' . $counter++;
+        }
+
+        if ($request->hasFile('icon')) {
+             $validated['icon'] = $this->handleIconUpload($request->file('icon'));
         }
 
         $category = Category::create($validated);
@@ -101,7 +107,7 @@ class CategoryController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('categories')->ignore($category->id)],
             'description' => ['nullable', 'string'],
-            'icon' => ['nullable', 'string', 'max:255'],
+            'icon' => ['nullable', 'image', 'max:2048'],
             'parent_id' => ['nullable', 'exists:categories,id', 'not_in:' . $category->id],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
@@ -112,6 +118,13 @@ class CategoryController extends Controller
             return response()->json([
                 'message' => 'Category cannot be its own parent.',
             ], 422);
+        }
+
+        if ($request->hasFile('icon')) {
+            if ($category->icon) {
+                Storage::disk('public')->delete($category->icon);
+            }
+            $validated['icon'] = $this->handleIconUpload($request->file('icon'));
         }
 
         $category->update($validated);
@@ -141,6 +154,10 @@ class CategoryController extends Controller
             ], 422);
         }
 
+        if ($category->icon) {
+             Storage::disk('public')->delete($category->icon);
+        }
+
         $category->delete();
 
         return response()->json([
@@ -166,5 +183,21 @@ class CategoryController extends Controller
         return response()->json([
             'message' => 'Categories reordered successfully.',
         ]);
+    }
+
+    /**
+     * Handle icon upload, resize, and conversion to WebP.
+     */
+    private function handleIconUpload($file): string
+    {
+        $filename = Str::uuid() . '.webp';
+        $path = 'categories/icons/' . $filename;
+
+        $image = Image::read($file);
+        $image->scale(width: 800);
+        $encoded = $image->toWebp(quality: 80);
+        Storage::disk('public')->put($path, (string) $encoded);
+
+        return $path;
     }
 }
