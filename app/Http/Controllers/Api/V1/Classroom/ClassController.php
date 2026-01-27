@@ -44,7 +44,7 @@ class ClassController extends Controller
                         ->join('batches', 'grades.batch_id', '=', 'batches.id')
                         ->where('batches.instructor_id', $user->id)
                         ->where('batches.type', 'classroom')
-                        ->avg('grades.grade') ?? 0,
+                        ->avg('grades.overall_score') ?? 0,
                     1
                 ),
             ];
@@ -75,7 +75,7 @@ class ClassController extends Controller
                         $query->select('users.id', 'users.name', 'users.avatar');
                     },
                     'grades' => function ($query) {
-                        $query->select('batch_id', 'grade');
+                        $query->select('batch_id', 'overall_score');
                     }
                 ])
                 ->when($request->status, function ($query, $status) {
@@ -113,7 +113,7 @@ class ClassController extends Controller
                         $query->select('users.id', 'users.name', 'users.avatar');
                     },
                     'grades' => function ($query) use ($user) {
-                        $query->where('user_id', $user->id)->select('batch_id', 'grade');
+                        $query->where('user_id', $user->id)->select('batch_id', 'overall_score');
                     }
                 ])
                 ->latest()
