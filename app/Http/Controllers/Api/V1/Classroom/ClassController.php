@@ -77,7 +77,7 @@ class ClassController extends Controller
                         $query->latest()->limit(5);
                     },
                     'enrollments.student' => function ($query) {
-                        $query->select('users.id', 'users.name', 'users.avatar');
+                        $query->select('users.id', 'users.name');
                     },
                     'grades' => function ($query) {
                         $query->select('batch_id', 'overall_score');
@@ -123,7 +123,7 @@ class ClassController extends Controller
                         $query->select('lessons.id', 'lessons.section_id');
                     },
                     'instructor' => function ($query) {
-                        $query->select('users.id', 'users.name', 'users.avatar');
+                        $query->select('users.id', 'users.name');
                     },
                     'grades' => function ($query) use ($user) {
                         $query->where('user_id', $user->id)->select('batch_id', 'overall_score');
